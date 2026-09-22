@@ -63,7 +63,21 @@ Open **http://localhost:5000** in your browser.
 
 ---
 
+## 🌐 Deploy to Render
+
+### 1-Click Deployment (Blueprints)
+1. Fork or push this repository to GitHub.
+2. Log in to [Render Dashboard](https://dashboard.render.com).
+3. Click **New +** → **Blueprint**.
+4. Connect this repository (`TreeSurveyorSMC`).
+5. Render will automatically detect `render.yaml`, provision a free PostgreSQL database and Flask web service, seed the database, and deploy with `gunicorn`.
+6. In **Environment Variables**, add your `OPENROUTER_API_KEY` or `GEMINI_API_KEY`.
+
+---
+
 ## 🛠️ Tech Stack
-- **Backend**: Python 3, Flask, SQLAlchemy, SQLite / PostgreSQL
+- **Backend**: Python 3, Flask, SQLAlchemy, SQLite / PostgreSQL, Gunicorn
 - **Frontend**: HTML5, CSS3, Leaflet.js, Chart.js
-- **AI Vision**: OpenRouter API (`google/gemini-2.5-flash` or `openai/gpt-4o-mini`)
+- **AI Vision**: OpenRouter API (`google/gemini-2.5-flash`), Google Gemini Direct REST, ViT Transformer
+- **Hosting**: Render (`render.yaml` ready)
+
