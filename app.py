@@ -5,14 +5,61 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable foreign key constraints in SQLite for parity with PostgreSQL."""
+    if type(dbapi_connection).__module__.startswith("sqlite3"):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+def resolve_database_config():
+    """
+    Intelligently resolves and normalizes database configuration for both PostgreSQL and SQLite:
+    - Auto-normalizes legacy 'postgres://' -> 'postgresql://' (e.g. Render / Heroku / Supabase)
+    - Defaults to local SQLite if DATABASE_URL is not set or empty
+    - Applies dialect-specific engine options (thread safety for SQLite, connection pooling for Postgres)
+    """
+    raw_url = os.environ.get('DATABASE_URL', '').strip()
+    
+    if raw_url.startswith('postgres://'):
+        db_uri = raw_url.replace('postgres://', 'postgresql://', 1)
+    elif raw_url:
+        db_uri = raw_url
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(base_dir, 'smc_tree_census.db')
+        db_uri = f'sqlite:///{db_path}'
+        
+    is_sqlite = db_uri.startswith('sqlite')
+    if is_sqlite:
+        engine_options = {
+            'connect_args': {
+                'check_same_thread': False,
+                'timeout': 30
+            }
+        }
+    else:
+        engine_options = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 10,
+            'max_overflow': 20
+        }
+        
+    return db_uri, engine_options, is_sqlite
+
 def create_app():
     app = Flask(__name__)
 
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'smc-tree-census-secret-key-2024')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL',
-        'postgresql://postgres:password@localhost:5432/smc_tree_census'
-    )
+    
+    db_uri, engine_options, is_sqlite = resolve_database_config()
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -54,7 +101,28 @@ def create_app():
 if __name__ == '__main__':
     app = create_app()
     with app.app_context():
-        db.create_all()
+        import re
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if db_uri.startswith('sqlite'):
+            clean_path = db_uri.replace('sqlite:///', '')
+            print(f"📦 Active Database: SQLite ({clean_path})")
+        else:
+            masked = re.sub(r':([^@]+)@', ':****@', db_uri)
+            print(f"🐘 Active Database: PostgreSQL ({masked})")
+            
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"\n❌ Database connection error on: {db_uri}")
+            print(f"   Details: {e}")
+            if 'postgresql' in db_uri:
+                print("\n💡 Troubleshooting PostgreSQL:")
+                print("   1. Verify PostgreSQL service is active: sudo service postgresql status")
+                print("   2. Verify port & credentials in .env (port 5432 vs 5433)")
+                print("   3. Or use zero-setup SQLite in .env:")
+                print("      DATABASE_URL=sqlite:///smc_tree_census.db\n")
+            raise
+
         from models.user import User
         admin = User.query.filter_by(role='admin').first()
         if not admin:

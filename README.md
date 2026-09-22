@@ -31,7 +31,19 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 ```
-*(Optional: Open `.env` and add your `OPENROUTER_API_KEY` or `GEMINI_API_KEY` for AI photo recognition).*
+
+#### Choose Your Database:
+- **SQLite (Zero Setup - Default)**:
+  ```env
+  DATABASE_URL=sqlite:///smc_tree_census.db
+  ```
+- **PostgreSQL**:
+  ```env
+  DATABASE_URL=postgresql://postgres:your_password@localhost:5432/smc_tree_census
+  # (If your local PostgreSQL runs on port 5433, use localhost:5433)
+  ```
+
+*(Optional: Add your `OPENROUTER_API_KEY` or `GEMINI_API_KEY` in `.env` for instant AI tree photo identification).*
 
 ### 3. Seed Database & Run
 ```bash

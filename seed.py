@@ -202,18 +202,78 @@ def seed_sample_trees(count=50):
     
     
 
+def ensure_database_exists(db_uri):
+    """If target PostgreSQL database doesn't exist yet, attempt to create it via maintenance db."""
+    if db_uri.startswith('postgresql'):
+        from urllib.parse import urlparse
+        import psycopg2
+        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+        
+        parsed = urlparse(db_uri)
+        dbname = parsed.path.lstrip('/')
+        if not dbname:
+            return
+            
+        try:
+            conn = psycopg2.connect(
+                dbname=dbname,
+                user=parsed.username,
+                password=parsed.password,
+                host=parsed.hostname,
+                port=parsed.port or 5432
+            )
+            conn.close()
+        except psycopg2.OperationalError as e:
+            if 'does not exist' in str(e):
+                print(f"⚙️ Target database '{dbname}' not found. Auto-creating on PostgreSQL server...")
+                try:
+                    maint_conn = psycopg2.connect(
+                        dbname='postgres',
+                        user=parsed.username,
+                        password=parsed.password,
+                        host=parsed.hostname,
+                        port=parsed.port or 5432
+                    )
+                    maint_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+                    cur = maint_conn.cursor()
+                    cur.execute(f'CREATE DATABASE "{dbname}"')
+                    cur.close()
+                    maint_conn.close()
+                    print(f"✅ Created PostgreSQL database: {dbname}")
+                except Exception as create_err:
+                    print(f"⚠️ Note: Run `createdb {dbname}` if auto-creation fails: {create_err}")
+
+
 if __name__ == '__main__':
     with app.app_context():
-
-        from models.user import User
-        from models.tree import Tree, TreeSpecies
-
+        import re
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
 
         print("\n🚀 SMC Tree Census - Database Seeder")
         print("=" * 45)
         
-        db.create_all()
-        print("✅ Database tables created\n")
+        if db_uri.startswith('sqlite'):
+            clean_path = db_uri.replace('sqlite:///', '')
+            print(f"📦 Seeding SQLite Database: {clean_path}")
+        else:
+            masked = re.sub(r':([^@]+)@', ':****@', db_uri)
+            print(f"🐘 Seeding PostgreSQL Database: {masked}")
+            ensure_database_exists(db_uri)
+
+        try:
+            db.create_all()
+            print("✅ Database tables verified/created\n")
+        except Exception as e:
+            print(f"\n❌ Database Connection Failed!")
+            print(f"   Error: {e}\n")
+            if 'postgresql' in db_uri:
+                print("👉 PostgreSQL Troubleshooting:")
+                print("   1. Check if PostgreSQL is running (service status)")
+                print("   2. Verify port in .env (port 5432 vs 5433)")
+                print("   3. Or switch to SQLite by setting in .env:")
+                print("      DATABASE_URL=sqlite:///smc_tree_census.db\n")
+            import sys
+            sys.exit(1)
         
         seed_species()
         seed_admin()
