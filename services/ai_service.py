@@ -42,10 +42,10 @@ Rules:
 - Output ONLY the raw JSON object."""
 
 
-def optimize_image_for_ai(image_path, max_dim=1024, quality=80):
+def optimize_image_for_ai(image_path, max_dim=768, quality=75):
     """
     Downscale and compress high-resolution camera images (e.g. 5-15MB)
-    down to ~80-150KB while preserving leaf, bark, and canopy clarity.
+    down to ~50-100KB while preserving leaf, bark, and canopy clarity.
     Reduces upload & vision processing latency by over 80%.
     """
     try:
@@ -188,76 +188,125 @@ def analyze_with_openrouter(image_path, api_key, model=None):
 
 
 def analyze_with_gemini(image_path, api_key):
-    """Analyze image using direct Google Gemini SDK (fast gemini-2.5-flash)."""
-    import google.generativeai as genai
-    
-    genai.configure(api_key=api_key.strip())
-    
-    # gemini-2.5-flash is ultra-fast (~1-3s)
-    candidate_models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash']
-    
-    # Optimize image
+    """
+    Analyze image using direct Google Gemini REST API (gemini-2.5-flash).
+    Uses native application/json enforcement for maximum speed and structured output.
+    """
     opt_bytes = optimize_image_for_ai(image_path)
-    img = Image.open(io.BytesIO(opt_bytes))
+    b64_data = base64.b64encode(opt_bytes).decode('utf-8')
     
-    generation_config = {
-        'temperature': 0.2,
-        'max_output_tokens': 500
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key.strip()}"
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": PROMPT},
+                {"inline_data": {"mime_type": "image/jpeg", "data": b64_data}}
+            ]
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 450,
+            "responseMimeType": "application/json"
+        }
     }
     
-    last_error = None
-    response = None
-    
-    for model_name in candidate_models:
+    try:
+        response = requests.post(url, json=payload, timeout=20)
+    except requests.exceptions.Timeout:
+        return {'success': False, 'error': 'Google Gemini API request timed out (20s)'}
+    except Exception as e:
+        return {'success': False, 'error': f'Google Gemini connection error: {str(e)}'}
+        
+    if response.status_code != 200:
+        error_msg = f'Status {response.status_code}'
         try:
-            model = genai.GenerativeModel(model_name, generation_config=generation_config)
-            response = model.generate_content([PROMPT, img])
-            if response and response.text:
-                break
-        except Exception as e:
-            last_error = e
-            err_str = str(e)
-            if "PERMISSION_DENIED" in err_str or "API_KEY_INVALID" in err_str or "denied access" in err_str:
-                return {
-                    'success': False,
-                    'error': 'Gemini API key lacks access. Check your API key at https://aistudio.google.com/apikey.'
-                }
-            continue
-
-    if not response or not hasattr(response, 'text') or not response.text:
-        return {
-            'success': False,
-            'error': f'Gemini analysis failed: {str(last_error) if last_error else "No response"}'
-        }
-
-    parsed = parse_and_validate_ai_json(response.text)
-    return {'success': True, 'data': parsed}
+            err_json = response.json()
+            if 'error' in err_json:
+                error_msg = err_json['error'].get('message', error_msg)
+        except Exception:
+            pass
+        return {'success': False, 'error': f'Google Gemini API error: {error_msg}'}
+        
+    try:
+        data = response.json()
+        candidates = data.get('candidates', [])
+        if not candidates:
+            return {'success': False, 'error': 'Gemini returned no candidates'}
+            
+        parts = candidates[0].get('content', {}).get('parts', [])
+        if not parts:
+            return {'success': False, 'error': 'Gemini returned empty parts'}
+            
+        raw_text = parts[0].get('text', '')
+        parsed = parse_and_validate_ai_json(raw_text)
+        return {'success': True, 'data': parsed}
+    except Exception as e:
+        return {'success': False, 'error': f'Failed to parse Gemini response: {str(e)}'}
 
 
 def analyze_tree_image(image_path):
     """
-    Analyze tree image automatically using the configured provider:
-    1. OpenRouter (if OPENROUTER_API_KEY is configured and not empty/placeholder)
-    2. Google Gemini Direct (if GEMINI_API_KEY is configured and not empty/placeholder)
+    Analyze tree image with automatic provider selection and resilient zero-downtime failover:
+    - If AI_PROVIDER=juppy44 (or vit / huggingface): juppy44/plant-identification-2m-vit-b is primary.
+    - If AI_PROVIDER=gemini (or google): Gemini direct is primary.
+    - If AI_PROVIDER=openrouter (or default): OpenRouter is primary.
+    - Automatic multi-provider failover: if primary fails, alternative providers are attempted.
     """
-    openrouter_key = os.environ.get('OPENROUTER_API_KEY')
-    gemini_key = os.environ.get('GEMINI_API_KEY')
+    preferred_provider = os.environ.get('AI_PROVIDER', '').strip().lower()
+    openrouter_key = os.environ.get('OPENROUTER_API_KEY', '').strip()
+    gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
     
-    # Check OpenRouter
-    if openrouter_key and openrouter_key.strip() and not openrouter_key.strip().startswith('your_'):
-        try:
-            return analyze_with_openrouter(image_path, openrouter_key)
-        except Exception as e:
-            return {'success': False, 'error': f'OpenRouter processing error: {str(e)}'}
+    has_openrouter = bool(openrouter_key and not openrouter_key.startswith('your_'))
+    has_gemini = bool(gemini_key and not gemini_key.startswith('your_'))
+    
+    try:
+        from services.vit_classifier import analyze_with_juppy44
+        has_vit = True
+    except Exception:
+        has_vit = False
+    
+    if not has_openrouter and not has_gemini and not has_vit:
+        return {
+            'success': False,
+            'error': 'No active AI Provider found. Please configure GEMINI_API_KEY, OPENROUTER_API_KEY, or juppy44 ViT model.'
+        }
+        
+    # Build prioritized list of execution functions
+    providers = []
+    if preferred_provider in ('juppy44', 'vit', 'huggingface'):
+        if has_vit:
+            providers.append(('juppy44/plant-identification-2m-vit-b', lambda: analyze_with_juppy44(image_path)))
+        if has_openrouter:
+            providers.append(('OpenRouter', lambda: analyze_with_openrouter(image_path, openrouter_key)))
+        if has_gemini:
+            providers.append(('Google Gemini', lambda: analyze_with_gemini(image_path, gemini_key)))
+    elif preferred_provider in ('gemini', 'google'):
+        if has_gemini:
+            providers.append(('Google Gemini', lambda: analyze_with_gemini(image_path, gemini_key)))
+        if has_openrouter:
+            providers.append(('OpenRouter', lambda: analyze_with_openrouter(image_path, openrouter_key)))
+        if has_vit:
+            providers.append(('juppy44/plant-identification-2m-vit-b', lambda: analyze_with_juppy44(image_path)))
+    else:
+        if has_openrouter:
+            providers.append(('OpenRouter', lambda: analyze_with_openrouter(image_path, openrouter_key)))
+        if has_gemini:
+            providers.append(('Google Gemini', lambda: analyze_with_gemini(image_path, gemini_key)))
+        if has_vit:
+            providers.append(('juppy44/plant-identification-2m-vit-b', lambda: analyze_with_juppy44(image_path)))
             
-    # Check direct Gemini
-    if gemini_key and gemini_key.strip() and not gemini_key.strip().startswith('your_'):
+    last_error = None
+    for name, call_fn in providers:
         try:
-            return analyze_with_gemini(image_path, gemini_key)
+            result = call_fn()
+            if result.get('success'):
+                result['provider'] = name
+                return result
+            last_error = f"{name}: {result.get('error', 'unknown error')}"
         except Exception as e:
-            return {'success': False, 'error': f'Gemini processing error: {str(e)}'}
+            last_error = f"{name} exception: {str(e)}"
             
     return {
         'success': False,
-        'error': 'No active AI API Key found in .env. Please set OPENROUTER_API_KEY or GEMINI_API_KEY.'
+        'error': f'All AI providers failed. Last error: {last_error}'
     }
