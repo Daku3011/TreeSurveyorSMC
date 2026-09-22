@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Zone-wise Reports{% endblock %}
+{% block page_subtitle %}Comprehensive analysis across all SMC zones{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Summary Cards -->
+    <div class="grid grid-4" style="margin-bottom:24px;">
+        {% set total_trees = namespace(val=0) %}
+        {% set total_carbon = namespace(val=0) %}
+        {% for row in zone_report %}
+            {% set total_trees.val = total_trees.val + row.total %}
+            {% set total_carbon.val = total_carbon.val + (row.total_carbon or 0) %}
+        {% endfor %}
+        <div class="stat-card" style="background:linear-gradient(135deg,#1a6b3c,#2d9a5a);color:white;border:none;">
+            <div class="stat-icon" style="background:rgba(255,255,255,0.2);">🌳</div>
+            <div class="stat-value" style="color:white;">{{ total_trees.val }}</div>
+            <div class="stat-label" style="color:rgba(255,255,255,0.8);">Total Active Trees</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;">🌿</div>
+            <div class="stat-value">{{ "%.0f"|format(total_carbon.val) }}</div>
+            <div class="stat-label">Total Carbon Stock (kg CO₂)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;">🗺️</div>
+            <div class="stat-value">{{ zone_report|length }}</div>
+            <div class="stat-label">Zones Surveyed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;">📊</div>
+            <div class="stat-value">{{ "%.1f"|format(total_trees.val / zone_report|length) if zone_report|length > 0 else 0 }}</div>
+            <div class="stat-label">Avg Trees per Zone</div>
+        </div>
+    </div>
+
+    <!-- Zone Table -->
+    <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+            <h3><i class="fas fa-table" style="color:var(--primary);margin-right:8px;"></i>Zone-wise Detailed Report</h3>
+            <a href="{{ url_for('admin.export_trees') }}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Zone</th>
+                        <th>Total Trees</th>
+                        <th>Excellent</th>
+                        <th>Good</th>
+                        <th>Fair</th>
+                        <th>Poor</th>
+                        <th>Avg Height (m)</th>
+                        <th>Carbon Stock (kg)</th>
+                        <th>Health Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in zone_report %}
+                    {% set excellent = row.excellent or 0 %}
+                    {% set good = row.good or 0 %}
+                    {% set fair = row.fair or 0 %}
+                    {% set poor = row.poor or 0 %}
+                    {% set health_score = ((excellent * 4 + good * 3 + fair * 2 + poor * 1) / (row.total * 4) * 100) if row.total > 0 else 0 %}
+                    <tr>
+                        <td><strong>{{ row.zone }}</strong></td>
+                        <td><span class="badge badge-blue" style="font-size:13px;padding:4px 12px;">{{ row.total }}</span></td>
+                        <td><span class="badge badge-green">{{ excellent }}</span></td>
+                        <td><span class="badge badge-green">{{ good }}</span></td>
+                        <td><span class="badge badge-yellow">{{ fair }}</span></td>
+                        <td><span class="badge badge-red">{{ poor }}</span></td>
+                        <td>{{ "%.1f"|format(row.avg_height) if row.avg_height else '-' }}</td>
+                        <td>{{ "%.0f"|format(row.total_carbon) if row.total_carbon else '0' }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div style="flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
+                                    <div style="height:100%;width:{{ health_score }}%;background:{% if health_score >= 75 %}#22c55e{% elif health_score >= 50 %}#f59e0b{% else %}#ef4444{% endif %};border-radius:4px;"></div>
+                                </div>
+                                <span style="font-size:12px;font-weight:700;min-width:36px;">{{ "%.0f"|format(health_score) }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted);">No data available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Visual Charts -->
+    <div class="grid grid-2" style="margin-bottom:24px;">
+        <div class="card">
+            <div class="card-header"><h3>Zone Tree Distribution</h3></div>
+            <div class="card-body"><canvas id="zoneBarChart" height="280"></canvas></div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h3>Carbon Stock by Zone (kg CO₂)</h3></div>
+            <div class="card-body"><canvas id="carbonChart" height="280"></canvas></div>
+        </div>
+    </div>
+
+    <div class="grid grid-2">
+        <div class="card">
+            <div class="card-header"><h3>Health Status - All Zones</h3></div>
+            <div class="card-body">
+                <canvas id="healthStackedChart" height="280"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h3>Report Notes</h3></div>
+            <div class="card-body">
+                <div style="background:#f0f7f4;border-radius:10px;padding:16px;margin-bottom:12px;">
+                    <h4 style="font-size:13px;color:var(--primary);margin-bottom:8px;">📌 How Carbon Stock is Calculated</h4>
+                    <p style="font-size:13px;color:#374151;line-height:1.6;">
+                        Using tropical tree allometric equation:<br>
+                        <code style="background:#e5e7eb;padding:2px 6px;border-radius:4px;">AGB = 0.0509 × DBH² × H</code><br>
+                        Carbon = AGB × 0.5 (50% biomass is carbon)
+                    </p>
+                </div>
+                <div style="background:#fef3c7;border-radius:10px;padding:16px;">
+                    <h4 style="font-size:13px;color:#92400e;margin-bottom:8px;">⚠️ Health Score Formula</h4>
+                    <p style="font-size:13px;color:#374151;line-height:1.6;">
+                        Excellent=4pts, Good=3pts, Fair=2pts, Poor=1pt<br>
+                        Score = (Weighted Sum) / (Total × 4) × 100%
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const zoneLabels = [{% for r in zone_report %}"{{ r.zone }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const zoneTotals = [{% for r in zone_report %}{{ r.total }}{% if not loop.last %},{% endif %}{% endfor %}];
+const zoneCarbon = [{% for r in zone_report %}{{ "%.0f"|format(r.total_carbon) if r.total_carbon else 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+const excellentData = [{% for r in zone_report %}{{ r.excellent or 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+const goodData = [{% for r in zone_report %}{{ r.good or 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+const fairData = [{% for r in zone_report %}{{ r.fair or 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+const poorData = [{% for r in zone_report %}{{ r.poor or 0 }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+new Chart(document.getElementById('zoneBarChart'), {
+    type: 'bar',
+    data: {
+        labels: zoneLabels,
+        datasets: [{ label: 'Trees', data: zoneTotals, backgroundColor: '#1a6b3c', borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('carbonChart'), {
+    type: 'bar',
+    data: {
+        labels: zoneLabels,
+        datasets: [{ label: 'kg CO₂', data: zoneCarbon, backgroundColor: '#059669', borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('healthStackedChart'), {
+    type: 'bar',
+    data: {
+        labels: zoneLabels,
+        datasets: [
+            { label: 'Excellent', data: excellentData, backgroundColor: '#22c55e' },
+            { label: 'Good', data: goodData, backgroundColor: '#84cc16' },
+            { label: 'Fair', data: fairData, backgroundColor: '#f59e0b' },
+            { label: 'Poor', data: poorData, backgroundColor: '#ef4444' }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+</script>
+{% endblock %}

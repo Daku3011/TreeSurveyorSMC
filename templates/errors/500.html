@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Server Error{% endblock %}
+{% block page_title %}500 — Server Error{% endblock %}
+{% block page_subtitle %}Something went wrong on our end{% endblock %}
+{% block content %}
+<div class="content" style="text-align:center;padding:60px 24px;">
+    <i class="fas fa-exclamation-triangle" style="font-size:80px;color:#f59e0b;margin-bottom:20px;display:block;"></i>
+    <h2 style="font-size:24px;margin-bottom:8px;">Something went wrong 😞</h2>
+    <p style="color:var(--text-muted);margin-bottom:24px;">Our server encountered an error. Please try again later.</p>
+    <a href="/" class="btn btn-primary"><i class="fas fa-home"></i> Go Home</a>
+</div>
+{% endblock %}

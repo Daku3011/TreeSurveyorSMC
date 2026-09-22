@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Map View{% endblock %}
+{% block page_title %}Map View{% endblock %}
+{% block page_subtitle %}Trees in {{ current_user.zone or 'your zone' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .map-wrap { height: calc(100vh - 130px); display:flex; flex-direction:column; }
+    .map-toolbar {
+        background:white; padding:10px 20px;
+        display:flex; gap:10px; align-items:center;
+        border-bottom:1px solid #e5e7eb; flex-wrap:wrap;
+    }
+    .map-area { flex:1; position:relative; }
+    #map { width:100%; height:100%; }
+    .fab-add {
+        position:absolute; bottom:24px; right:24px; z-index:1000;
+        width:56px; height:56px; border-radius:50%;
+        background:var(--primary); color:white;
+        display:flex; align-items:center; justify-content:center;
+        font-size:22px; text-decoration:none;
+        box-shadow: 0 4px 20px rgba(26,107,60,0.4);
+        transition:all 0.2s;
+    }
+    .fab-add:hover { transform:scale(1.1); }
+    .legend-box {
+        position:absolute; bottom:20px; left:20px; z-index:1000;
+        background:white; border-radius:10px; padding:12px;
+        box-shadow:0 4px 16px rgba(0,0,0,0.1); font-size:12px;
+    }
+    .l-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+    .l-dot { width:10px; height:10px; border-radius:50%; }
+    .select-ctrl { padding:7px 10px; border:1.5px solid #e5e7eb; border-radius:8px; font-size:13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-wrap">
+    <div class="map-toolbar">
+        <select class="select-ctrl" id="healthFilter" onchange="applyFilter()">
+            <option value="">All Health Status</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+            <option value="Poor">Poor</option>
+        </select>
+        <input type="text" class="select-ctrl" id="searchBox" 
+               placeholder="🔍 Search species or area..." style="min-width:200px;"
+               oninput="searchTrees()">
+        <button onclick="captureLocation()" class="btn btn-outline btn-sm">
+            <i class="fas fa-location-crosshairs"></i> My Location
+        </button>
+        <span id="treeCountBadge" style="background:var(--primary);color:white;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">Loading...</span>
+    </div>
+    <div class="map-area">
+        <div id="map"></div>
+        <a href="{{ url_for('user.add_tree') }}" class="fab-add" title="Add New Tree">
+            <i class="fas fa-plus"></i>
+        </a>
+        <div class="legend-box">
+            <div style="font-weight:700;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;">Health</div>
+            <div class="l-item"><div class="l-dot" style="background:#22c55e;"></div>Excellent</div>
+            <div class="l-item"><div class="l-dot" style="background:#84cc16;"></div>Good</div>
+            <div class="l-item"><div class="l-dot" style="background:#f59e0b;"></div>Fair</div>
+            <div class="l-item"><div class="l-dot" style="background:#ef4444;"></div>Poor</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const map = L.map('map').setView([21.1702, 72.8311], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+L.control.layers({'Street': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map), 'Satellite': satelliteLayer}).addTo(map);
+
+let markersGroup = L.layerGroup().addTo(map);
+let allTrees = [];
+
+function loadTrees() {
+    fetch('/api/trees/geojson')
+        .then(r => r.json())
+        .then(data => {
+            allTrees = data.features;
+            renderMarkers(allTrees);
+            document.getElementById('treeCountBadge').textContent = data.total + ' Trees';
+            if (data.features.length > 0) {
+                const coords = data.features.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+                map.fitBounds(L.latLngBounds(coords).pad(0.1));
+            }
+        });
+}
+
+function renderMarkers(trees) {
+    markersGroup.clearLayers();
+    trees.forEach(t => {
+        const p = t.properties;
+        const m = L.circleMarker([t.geometry.coordinates[1], t.geometry.coordinates[0]], {
+            radius: 8, fillColor: p.color, color: 'white',
+            weight: 2, fillOpacity: 0.85
+        });
+        m.bindPopup(`
+            <div style="font-family:'Plus Jakarta Sans',sans-serif;min-width:200px;">
+                <strong style="color:#1a6b3c;">🌳 ${p.tree_id}</strong><br>
+                <span style="font-size:13px;">${p.name_gu || ''} ${p.name_en ? '/ ' + p.name_en : ''}</span><br>
+                <hr style="margin:6px 0;border-color:#f3f4f6;">
+                <div style="font-size:12px;"><b>Zone:</b> ${p.zone}</div>
+                <div style="font-size:12px;"><b>Area:</b> ${p.area || '-'}</div>
+                <div style="font-size:12px;"><b>Health:</b> <span style="color:${p.color};font-weight:600;">${p.health}</span></div>
+                <div style="font-size:12px;"><b>Carbon:</b> ${p.carbon ? p.carbon + ' kg CO₂' : '-'}</div>
+                <a href="/user/trees/${p.id}" style="display:block;margin-top:8px;text-align:center;padding:5px;background:#1a6b3c;color:white;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">View Details →</a>
+            </div>
+        `);
+        markersGroup.addLayer(m);
+    });
+    document.getElementById('treeCountBadge').textContent = trees.length + ' Trees';
+}
+
+function applyFilter() {
+    const health = document.getElementById('healthFilter').value;
+    const search = document.getElementById('searchBox').value.toLowerCase();
+    let filtered = allTrees;
+    if (health) filtered = filtered.filter(t => t.properties.health === health);
+    if (search) filtered = filtered.filter(t =>
+        (t.properties.name_en || '').toLowerCase().includes(search) ||
+        (t.properties.name_gu || '').toLowerCase().includes(search) ||
+        (t.properties.area || '').toLowerCase().includes(search) ||
+        (t.properties.tree_id || '').toLowerCase().includes(search)
+    );
+    renderMarkers(filtered);
+}
+
+function searchTrees() { applyFilter(); }
+
+function captureLocation() {
+    navigator.geolocation.getCurrentPosition(pos => {
+        const latlng = [pos.coords.latitude, pos.coords.longitude];
+        map.setView(latlng, 16);
+        L.marker(latlng).addTo(map).bindPopup('📍 You are here').openPopup();
+    }, () => alert('Could not get location'));
+}
+
+loadTrees();
+</script>
+{% endblock %}

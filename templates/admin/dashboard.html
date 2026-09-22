@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block page_subtitle %}SMC Tree Census Overview - All Zones{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Stats Row -->
+    <div class="grid grid-4" style="margin-bottom:24px;">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;">🌳</div>
+            <div class="stat-value">{{ total_trees | default(0) }}</div>
+            <div class="stat-label">Total Active Trees</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;">👥</div>
+            <div class="stat-value">{{ total_users | default(0) }}</div>
+            <div class="stat-label">Field Surveyors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;">⚠️</div>
+            <div class="stat-value">{{ pending_verification | default(0) }}</div>
+            <div class="stat-label">Pending Verification</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f3e8ff;">🌿</div>
+            <div class="stat-value">6</div>
+            <div class="stat-label">SMC Zones Covered</div>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="grid grid-2" style="margin-bottom:24px;">
+        <!-- Zone-wise Chart -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-map" style="color:var(--primary);margin-right:8px;"></i>Zone-wise Tree Count</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="zoneChart" height="220"></canvas>
+            </div>
+        </div>
+        
+        <!-- Health Distribution -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-heartbeat" style="color:#dc2626;margin-right:8px;"></i>Health Distribution</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="healthChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Trend + Top Species -->
+    <div class="grid grid-2" style="margin-bottom:24px;">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line" style="color:var(--primary);margin-right:8px;"></i>Monthly Survey Trend</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="200"></canvas>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-leaf" style="color:#059669;margin-right:8px;"></i>Top 10 Species</h3>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Species</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for name, count in species_stats %}
+                        <tr>
+                            <td style="color:var(--text-muted);">{{ loop.index }}</td>
+                            <td>{{ name or 'Unknown' }}</td>
+                            <td><span class="badge badge-green">{{ count }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No data yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Trees -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock" style="color:var(--text-muted);margin-right:8px;"></i>Recently Added Trees</h3>
+            <a href="{{ url_for('admin.tree_list') }}" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tree ID</th>
+                        <th>Species (Gujarati)</th>
+                        <th>Species (English)</th>
+                        <th>Zone</th>
+                        <th>Area</th>
+                        <th>Health</th>
+                        <th>Survey Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tree in recent_trees %}
+                    <tr>
+                        <td><strong style="color:var(--primary);">{{ tree.tree_id }}</strong></td>
+                        <td>{{ tree.common_name_gujarati or '-' }}</td>
+                        <td>{{ tree.common_name_english or '-' }}</td>
+                        <td><span class="badge badge-blue">{{ tree.zone }}</span></td>
+                        <td>{{ tree.area_name or '-' }}</td>
+                        <td>
+                            {% set hc = tree.health_condition %}
+                            <span class="badge {% if hc == 'Excellent' %}badge-green{% elif hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}">
+                                {{ hc or 'N/A' }}
+                            </span>
+                        </td>
+                        <td>{{ tree.survey_date.strftime('%d %b %Y') if tree.survey_date else '-' }}</td>
+                        <td>
+                            {% if tree.is_verified %}
+                            <span class="badge badge-green"><i class="fas fa-check"></i> Verified</span>
+                            {% else %}
+                            <span class="badge badge-yellow">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin.tree_detail', tree_id=tree.id) }}" 
+                               class="btn btn-outline btn-sm">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);">
+                            <i class="fas fa-tree" style="font-size:32px;margin-bottom:12px;display:block;opacity:0.3;"></i>
+                            No trees recorded yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const zoneLabels = [{% for z, c in zone_stats %}"{{ z }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const zoneCounts = [{% for z, c in zone_stats %}{{ c }}{% if not loop.last %},{% endif %}{% endfor %}];
+const healthLabels = [{% for h, c in health_stats %}"{{ h }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const healthCounts = [{% for h, c in health_stats %}{{ c }}{% if not loop.last %},{% endif %}{% endfor %}];
+const monthlyLabels = [{% for m in monthly_data %}"{{ m.month }}"{% if not loop.last %},{% endif %}{% endfor %}];
+const monthlyCounts = [{% for m in monthly_data %}{{ m.count }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+// Zone Chart
+new Chart(document.getElementById('zoneChart'), {
+    type: 'bar',
+    data: {
+        labels: zoneLabels,
+        datasets: [{
+            label: 'Trees',
+            data: zoneCounts,
+            backgroundColor: '#1a6b3c',
+            borderRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+// Health Chart
+const healthColors = {
+    'Excellent': '#22c55e', 'Good': '#84cc16',
+    'Fair': '#f59e0b', 'Poor': '#ef4444', 'Dead': '#6b7280'
+};
+new Chart(document.getElementById('healthChart'), {
+    type: 'doughnut',
+    data: {
+        labels: healthLabels,
+        datasets: [{
+            data: healthCounts,
+            backgroundColor: healthLabels.map(h => healthColors[h] || '#3b82f6'),
+            borderWidth: 2, borderColor: 'white'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+});
+
+// Monthly Chart
+new Chart(document.getElementById('monthlyChart'), {
+    type: 'line',
+    data: {
+        labels: monthlyLabels,
+        datasets: [{
+            label: 'Trees Surveyed',
+            data: monthlyCounts,
+            borderColor: '#1a6b3c',
+            backgroundColor: 'rgba(26,107,60,0.1)',
+            fill: true, tension: 0.4, pointBackgroundColor: '#1a6b3c'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}Manage field surveyors and admin accounts{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-users" style="color:var(--primary);margin-right:8px;"></i>All Users ({{ users|length }})</h3>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-user-plus"></i> Add New User
+            </a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Employee ID</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Zone</th>
+                        <th>Ward</th>
+                        <th>Trees Surveyed</th>
+                        <th>Last Login</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td style="color:var(--text-muted);">{{ loop.index }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:36px;height:36px;border-radius:50%;background:{% if user.role == 'admin' %}#fef3c7{% else %}#d1fae5{% endif %};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:{% if user.role == 'admin' %}#92400e{% else %}#065f46{% endif %};">
+                                    {{ user.full_name[0] }}
+                                </div>
+                                <div>
+                                    <div style="font-weight:600;font-size:13.5px;">{{ user.full_name }}</div>
+                                    <div style="font-size:11px;color:var(--text-muted);">@{{ user.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code style="font-size:12px;">{{ user.employee_id or '-' }}</code></td>
+                        <td style="font-size:12px;">{{ user.email }}</td>
+                        <td style="font-size:12px;">{{ user.phone or '-' }}</td>
+                        <td>
+                            <span class="badge {% if user.role == 'admin' %}badge-yellow{% else %}badge-green{% endif %}">
+                                <i class="fas fa-{% if user.role == 'admin' %}crown{% else %}user{% endif %}" style="margin-right:4px;"></i>
+                                {{ user.role|capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ user.zone or '-' }}</td>
+                        <td>{{ user.ward or '-' }}</td>
+                        <td>
+                            <strong style="color:var(--primary);">{{ user.trees.filter_by(status='active').count() }}</strong>
+                        </td>
+                        <td style="font-size:12px;color:var(--text-muted);">
+                            {{ user.last_login.strftime('%d %b %Y') if user.last_login else 'Never' }}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge badge-green"><i class="fas fa-circle" style="font-size:8px;margin-right:4px;"></i>Active</span>
+                            {% else %}
+                            <span class="badge badge-red"><i class="fas fa-circle" style="font-size:8px;margin-right:4px;"></i>Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('admin.toggle_user', user_id=user.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm {% if user.is_active %}btn-warning{% else %}btn-success{% endif %}"
+                                        onclick="return confirm('{{ 'Deactivate' if user.is_active else 'Activate' }} {{ user.full_name }}?')">
+                                    <i class="fas fa-{% if user.is_active %}ban{% else %}check{% endif %}"></i>
+                                    {{ 'Deactivate' if user.is_active else 'Activate' }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span style="font-size:12px;color:var(--text-muted);">Current User</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12" style="text-align:center;padding:40px;color:var(--text-muted);">No users found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- User Stats Cards -->
+    <div class="grid grid-4" style="margin-top:24px;">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#d1fae5;">👥</div>
+            <div class="stat-value">{{ users|selectattr('role','eq','user')|list|length }}</div>
+            <div class="stat-label">Field Surveyors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fef3c7;">👑</div>
+            <div class="stat-value">{{ users|selectattr('role','eq','admin')|list|length }}</div>
+            <div class="stat-label">Administrators</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#dbeafe;">✅</div>
+            <div class="stat-value">{{ users|selectattr('is_active')|list|length }}</div>
+            <div class="stat-label">Active Accounts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fee2e2;">🚫</div>
+            <div class="stat-value">{{ users|rejectattr('is_active')|list|length }}</div>
+            <div class="stat-label">Inactive Accounts</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

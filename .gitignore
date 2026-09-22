@@ -1,0 +1,74 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+
+# Environment Variables & Secrets (Contains API keys and credentials)
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Local SQLite Databases & Instances
+*.db
+*.sqlite
+*.sqlite3
+instance/
+smc_tree_census.db
+
+# User Uploaded Tree Photos & Temp Cache
+static/uploads/*
+!static/uploads/.gitkeep
+static/uploads/trees/*
+!static/uploads/trees/.gitkeep
+static/uploads/ai_temp/*
+
+# Generated Export Files & Data Dumps
+*.xlsx
+*.csv
+*.log
+
+# Testing & Coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+*.pyc
+*.pyo
+*.pyd
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+
+# IDEs and Editors
+.vscode/

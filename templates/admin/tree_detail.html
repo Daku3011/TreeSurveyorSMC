@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ tree.tree_id }} - Tree Detail{% endblock %}
+{% block page_title %}{{ tree.tree_id }}{% endblock %}
+{% block page_subtitle %}{{ tree.common_name_gujarati }} / {{ tree.common_name_english }} | {{ tree.zone }}{% endblock %}
+
+{% block content %}
+<div class="content">
+    <!-- Action Bar -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+        <a href="{{ url_for('admin.tree_list') }}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+        {% if not tree.is_verified %}
+        <form method="POST" action="{{ url_for('admin.verify_tree', tree_id=tree.id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check-circle"></i> Verify Tree
+            </button>
+        </form>
+        {% else %}
+        <span class="btn btn-success" style="opacity:0.7;cursor:default;">
+            <i class="fas fa-check-circle"></i> Verified
+        </span>
+        {% endif %}
+        <a href="https://maps.google.com/?q={{ tree.latitude }},{{ tree.longitude }}" 
+           target="_blank" class="btn btn-outline">
+            <i class="fas fa-map-marked-alt"></i> Open in Google Maps
+        </a>
+        <form method="POST" action="{{ url_for('admin.delete_tree', tree_id=tree.id) }}" 
+              style="display:inline;" onsubmit="return confirm('Mark this tree as removed?')">
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Mark Removed
+            </button>
+        </form>
+    </div>
+    
+    <div class="grid grid-2" style="gap:24px;align-items:start;">
+        <!-- LEFT -->
+        <div>
+            <!-- Photos -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>📸 Photos</h3></div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        {% for photo_attr, label in [('photo_main','Main'), ('photo_bark','Bark'), ('photo_leaf','Leaf'), ('photo_canopy','Canopy')] %}
+                        {% set photo = tree[photo_attr] if tree[photo_attr] else None %}
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">{{ label }}</div>
+                            {% if photo %}
+                            <img src="/static/{{ photo }}" style="width:100%;border-radius:10px;object-fit:cover;height:120px;">
+                            {% else %}
+                            <div style="height:120px;background:#f3f4f6;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#d1d5db;">🌳</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Map -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>📍 GPS Location</h3></div>
+                <div class="card-body" style="padding:0;">
+                    <div id="treeMap" style="height:300px;border-radius:0 0 16px 16px;"></div>
+                </div>
+                <div style="padding:12px 20px;background:#f9fafb;border-top:1px solid var(--border);font-size:13px;">
+                    <strong>Coordinates:</strong> {{ '%.6f'|format(tree.latitude) }}, {{ '%.6f'|format(tree.longitude) }}
+                    {% if tree.gps_accuracy %} | <strong>Accuracy:</strong> ±{{ tree.gps_accuracy }}m{% endif %}
+                </div>
+            </div>
+            
+            <!-- Ecological Value -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>🌿 Ecological Value</h3></div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div style="text-align:center;padding:16px;background:#d1fae5;border-radius:10px;">
+                            <div style="font-size:28px;font-weight:800;color:#059669;">{{ tree.carbon_stock or 0 }}</div>
+                            <div style="font-size:12px;color:#065f46;margin-top:4px;">kg CO₂ Carbon Stock</div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:#dbeafe;border-radius:10px;">
+                            <div style="font-size:28px;font-weight:800;color:#1d4ed8;">{{ tree.oxygen_production or 0 }}</div>
+                            <div style="font-size:12px;color:#1e40af;margin-top:4px;">kg O₂/year Production</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Analysis -->
+            {% if tree.ai_description %}
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <h3>🤖 AI Analysis</h3>
+                    {% if tree.ai_confidence %}
+                    <span class="badge {% if tree.ai_confidence == 'High' %}badge-green{% elif tree.ai_confidence == 'Medium' %}badge-yellow{% else %}badge-red{% endif %}">
+                        {{ tree.ai_confidence }} Confidence
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div style="background:linear-gradient(135deg,#ede9fe,#e0e7ff);border-radius:10px;padding:16px;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                            <span style="background:#7c3aed;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">AI GENERATED</span>
+                        </div>
+                        <p style="font-size:13.5px;line-height:1.6;color:#312e81;">{{ tree.ai_description }}</p>
+                    </div>
+                    {% if tree.ai_ecological_notes %}
+                    <div style="background:#d1fae5;border-radius:8px;padding:12px 14px;">
+                        <div style="font-size:10px;font-weight:700;color:#065f46;text-transform:uppercase;margin-bottom:4px;">🌿 Ecological Notes</div>
+                        <p style="font-size:12.5px;color:#064e3b;">{{ tree.ai_ecological_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- RIGHT -->
+        <div>
+            <!-- Tree Info -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <h3>🌳 Tree Information</h3>
+                    <span class="badge {% if tree.health_condition == 'Excellent' or tree.health_condition == 'Good' %}badge-green{% elif tree.health_condition == 'Fair' %}badge-yellow{% elif tree.health_condition == 'Poor' %}badge-red{% else %}badge-gray{% endif %}" style="font-size:13px;padding:5px 14px;">
+                        {{ tree.health_condition or 'N/A' }}
+                    </span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    {% macro info_row(label, value) %}
+                    <div style="display:flex;padding:10px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:160px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;flex-shrink:0;">{{ label }}</span>
+                        <span style="font-size:13.5px;font-weight:500;">{{ value or '-' }}</span>
+                    </div>
+                    {% endmacro %}
+                    
+                    {{ info_row('Tree ID', tree.tree_id) }}
+                    {{ info_row('Tag Number', tree.tree_tag_number) }}
+                    {{ info_row('Gujarati Name', tree.common_name_gujarati) }}
+                    {{ info_row('English Name', tree.common_name_english) }}
+                    {{ info_row('Botanical Name', tree.botanical_name) }}
+                    {{ info_row('Family', tree.family) }}
+                    {{ info_row('Zone', tree.zone) }}
+                    {{ info_row('Ward', tree.ward) }}
+                    {{ info_row('Area', tree.area_name) }}
+                    {{ info_row('Street', tree.street_address) }}
+                    {{ info_row('Location Type', tree.location_type) }}
+                    {{ info_row('Height', (tree.tree_height|string + ' m') if tree.tree_height else None) }}
+                    {{ info_row('Trunk Girth', (tree.trunk_girth|string + ' cm') if tree.trunk_girth else None) }}
+                    {{ info_row('DBH', (tree.dbh|string + ' cm') if tree.dbh else None) }}
+                    {{ info_row('Canopy N-S', (tree.canopy_spread_ns|string + ' m') if tree.canopy_spread_ns else None) }}
+                    {{ info_row('Canopy E-W', (tree.canopy_spread_ew|string + ' m') if tree.canopy_spread_ew else None) }}
+                    {{ info_row('Est. Age', (tree.estimated_age|string + ' years') if tree.estimated_age else None) }}
+                    {{ info_row('Growth Stage', tree.growth_stage) }}
+                    {{ info_row('Structural', tree.structural_condition) }}
+                    {{ info_row('Pest/Disease', tree.pest_disease) }}
+                    {{ info_row('Damage', tree.damage_type) }}
+                    {{ info_row('Action Required', tree.action_required) }}
+                    {{ info_row('Priority', tree.priority) }}
+                    {{ info_row('Tree Guard', 'Yes' if tree.tree_guard else 'No') }}
+                    {{ info_row('Soil Type', tree.soil_type) }}
+                    {{ info_row('Water', tree.water_availability) }}
+                    {{ info_row('Ecological Value', tree.ecological_value) }}
+                    <div style="display:flex;padding:10px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:160px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;flex-shrink:0;">Survey Date</span>
+                        <span style="font-size:13.5px;">{{ tree.survey_date.strftime('%d %B %Y, %H:%M') if tree.survey_date else '-' }}</span>
+                    </div>
+                    <div style="display:flex;padding:10px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:160px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;flex-shrink:0;">Verified</span>
+                        <span style="font-size:13.5px;">
+                            {% if tree.is_verified %}
+                            <span style="color:#059669;font-weight:600;">✅ Yes - {{ tree.verified_at.strftime('%d %b %Y') if tree.verified_at else '' }}</span>
+                            {% else %}
+                            <span style="color:#f59e0b;font-weight:600;">⏳ Pending</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if tree.notes %}
+                    <div style="padding:12px 20px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Notes</div>
+                        <p style="font-size:13.5px;color:var(--text);">{{ tree.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Maintenance Log -->
+            <div class="card">
+                <div class="card-header"><h3>🔧 Maintenance History</h3></div>
+                {% if maintenance %}
+                <div style="overflow-x:auto;">
+                    <table class="table">
+                        <thead><tr><th>Date</th><th>Action</th><th>By</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            {% for log in maintenance %}
+                            <tr>
+                                <td>{{ log.action_date.strftime('%d %b %Y') }}</td>
+                                <td><span class="badge badge-blue">{{ log.action_type }}</span></td>
+                                <td>{{ log.worker.full_name if log.worker else '-' }}</td>
+                                <td style="font-size:12px;">{{ log.notes or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-body" style="text-align:center;color:var(--text-muted);padding:32px;">
+                    No maintenance records yet
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const map = L.map('treeMap').setView([{{ tree.latitude }}, {{ tree.longitude }}], 16);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+const healthColor = {
+    'Excellent': '#22c55e', 'Good': '#84cc16', 'Fair': '#f59e0b',
+    'Poor': '#ef4444', 'Dead': '#6b7280'
+}['{{ tree.health_condition }}'] || '#3b82f6';
+
+L.circleMarker([{{ tree.latitude }}, {{ tree.longitude }}], {
+    radius: 12, fillColor: healthColor, color: 'white',
+    weight: 3, fillOpacity: 0.9
+}).addTo(map).bindPopup('<strong>🌳 {{ tree.tree_id }}</strong><br>{{ tree.common_name_gujarati }}<br>{{ tree.health_condition }}').openPopup();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Species Library{% endblock %}
+{% block page_title %}Species Library{% endblock %}
+{% block page_subtitle %}Tree species database for Surat region{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-leaf" style="color:#059669;margin-right:8px;"></i>Species ({{ species|length }})</h3>
+            <a href="{{ url_for('admin.add_species') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Add Species
+            </a>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Gujarati Name</th>
+                        <th>English Name</th>
+                        <th>Botanical Name</th>
+                        <th>Family</th>
+                        <th>Native</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sp in species %}
+                    <tr>
+                        <td style="color:var(--text-muted);">{{ loop.index }}</td>
+                        <td style="font-size:15px;">{{ sp.common_name_gujarati or '-' }}</td>
+                        <td><strong>{{ sp.common_name_english }}</strong></td>
+                        <td><em style="color:var(--text-muted);font-size:13px;">{{ sp.botanical_name or '-' }}</em></td>
+                        <td>{{ sp.family or '-' }}</td>
+                        <td>
+                            {% if sp.native %}
+                            <span class="badge badge-green">Native</span>
+                            {% else %}
+                            <span class="badge badge-gray">Exotic</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">
+                        No species added yet. <a href="{{ url_for('admin.add_species') }}" style="color:var(--primary);">Add first species →</a>
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

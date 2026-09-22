@@ -1,0 +1,735 @@
+{% extends "base.html" %}
+{% block title %}Add New Tree{% endblock %}
+{% block page_title %}Add New Tree{% endblock %}
+{% block page_subtitle %}Record new tree with GPS location and details{% endblock %}
+
+{% block extra_css %}
+<style>
+    .section-title {
+        font-size: 13px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: var(--primary);
+        padding: 14px 24px; background: #f0f7f4;
+        border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+        margin: 0 -24px 20px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .gps-box {
+        background: linear-gradient(135deg, #0f4a28, #1a6b3c);
+        border-radius: 12px; padding: 20px; margin-bottom: 20px; color: white;
+    }
+    .gps-box h4 { font-size: 14px; margin-bottom: 8px; }
+    .gps-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .gps-coord-box { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 14px; }
+    .gps-coord-box label { font-size: 10px; opacity: 0.7; text-transform: uppercase; }
+    .gps-coord-box input {
+        background: transparent; border: none; color: white;
+        font-size: 16px; font-weight: 700; width: 100%; outline: none;
+        font-family: inherit;
+    }
+    .gps-coord-box input::placeholder { color: rgba(255,255,255,0.4); font-size:13px; }
+    .btn-gps {
+        background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
+        color: white; padding: 9px 16px; border-radius: 8px;
+        cursor: pointer; font-size: 13px; font-weight: 600;
+        display: flex; align-items: center; gap: 8px; font-family: inherit;
+        transition: all 0.2s;
+    }
+    .btn-gps:hover { background: rgba(255,255,255,0.25); }
+    .gps-status { font-size: 12px; opacity: 0.8; margin-top: 8px; }
+    .mini-map { height: 200px; border-radius: 10px; margin-top: 12px; overflow: hidden; }
+    .photo-upload {
+        border: 2px dashed var(--border); border-radius: 10px;
+        padding: 20px; text-align: center; cursor: pointer;
+        transition: all 0.2s; position: relative;
+    }
+    .photo-upload:hover { border-color: var(--primary); background: #f0f7f4; }
+    .photo-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .photo-upload i { font-size: 24px; color: var(--text-muted); margin-bottom: 6px; }
+    .photo-upload p { font-size: 12px; color: var(--text-muted); }
+    .photo-preview { max-width: 100%; border-radius: 8px; margin-top: 8px; display:none; }
+    .ai-analyze-box {
+        background: linear-gradient(135deg, #7c3aed, #2563eb);
+        border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; color: white;
+    }
+    .ai-analyze-box h4 { font-size: 14px; margin-bottom: 4px; }
+    .ai-analyze-box p { font-size: 12px; opacity: 0.8; margin-bottom: 12px; }
+    .btn-ai {
+        background: rgba(255,255,255,0.2); border: 1.5px solid rgba(255,255,255,0.4);
+        color: white; padding: 10px 20px; border-radius: 8px;
+        cursor: pointer; font-size: 13px; font-weight: 700;
+        display: inline-flex; align-items: center; gap: 8px; font-family: inherit;
+        transition: all 0.3s;
+    }
+    .btn-ai:hover { background: rgba(255,255,255,0.35); transform: translateY(-1px); }
+    .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .ai-result-box {
+        background: #f0f4ff; border: 1.5px solid #c7d2fe; border-radius: 10px;
+        padding: 14px 18px; margin-top: 12px; display: none;
+    }
+    .ai-result-box .ai-tag {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px;
+        background: #818cf8; color: white; margin-bottom: 8px;
+    }
+    .ai-result-box .ai-desc { font-size: 12.5px; color: #312e81; line-height: 1.5; }
+    .ai-confidence { font-size: 11px; margin-top: 6px; font-weight: 600; }
+    .ai-confidence.high { color: #059669; }
+    .ai-confidence.medium { color: #d97706; }
+    .ai-confidence.low { color: #dc2626; }
+    @keyframes ai-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    .ai-loading { animation: ai-pulse 1.5s ease-in-out infinite; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="grid grid-2" style="gap:24px;align-items:start;">
+            <!-- LEFT COLUMN -->
+            <div>
+                <!-- GPS Location -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header">
+                        <h3><i class="fas fa-map-marker-alt" style="color:#ef4444;"></i> GPS Location <span style="color:#ef4444;">*</span></h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="gps-box">
+                            <h4>📍 Capture GPS Coordinates</h4>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <button type="button" class="btn-gps" onclick="captureGPS()">
+                                    <i class="fas fa-crosshairs"></i> Get My Location
+                                </button>
+                                <button type="button" class="btn-gps" onclick="useMapClick()">
+                                    <i class="fas fa-map-pin"></i> Click on Map
+                                </button>
+                            </div>
+                            <div class="gps-status" id="gpsStatus">Press "Get My Location" to capture GPS</div>
+                            <div class="gps-coords">
+                                <div class="gps-coord-box">
+                                    <label>Latitude</label>
+                                    <input type="number" name="latitude" id="latInput" 
+                                           step="0.000001" placeholder="21.170240" required>
+                                </div>
+                                <div class="gps-coord-box">
+                                    <label>Longitude</label>
+                                    <input type="number" name="longitude" id="lngInput"
+                                           step="0.000001" placeholder="72.831062" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Altitude (m)</label>
+                                <input type="number" name="altitude" class="form-control" 
+                                       id="altInput" placeholder="Auto-captured" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">GPS Accuracy (m)</label>
+                                <input type="number" name="gps_accuracy" class="form-control"
+                                       id="accInput" placeholder="±meters" step="0.1">
+                            </div>
+                        </div>
+                        
+                        <div id="miniMap" class="mini-map"></div>
+                    </div>
+                </div>
+                
+                <!-- Administrative Location -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-building" style="color:var(--primary);"></i> Administrative Location</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">SMC Zone <span style="color:red;">*</span></label>
+                            <select name="zone" class="form-control" required>
+                                {% for zone in zones %}
+                                <option value="{{ zone }}" {% if zone == current_user.zone %}selected{% endif %}>{{ zone }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Ward Name</label>
+                                <input type="text" name="ward" class="form-control"
+                                       value="{{ current_user.ward or '' }}" placeholder="e.g. Athwa">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Ward Number</label>
+                                <input type="text" name="ward_number" class="form-control" placeholder="e.g. 1">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Area / Locality Name</label>
+                            <input type="text" name="area_name" class="form-control" placeholder="e.g. Ghod Dod Road, Varachha">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Street Address</label>
+                            <input type="text" name="street_address" class="form-control" placeholder="Near landmark or street name">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Location Type</label>
+                            <select name="location_type" class="form-control">
+                                <option value="">Select type</option>
+                                <option value="Road Divider">Road Divider</option>
+                                <option value="Footpath">Footpath</option>
+                                <option value="Public Garden">Public Garden</option>
+                                <option value="Park">Park</option>
+                                <option value="School">School</option>
+                                <option value="Hospital">Hospital</option>
+                                <option value="Government Office">Government Office</option>
+                                <option value="Residential Area">Residential Area</option>
+                                <option value="River Bank">River Bank</option>
+                                <option value="Railway Track Side">Railway Track Side</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Photos -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-camera" style="color:var(--primary);"></i> Tree Photos</h3></div>
+                    <div class="card-body">
+                        <!-- AI Analysis Section -->
+                        <div class="ai-analyze-box">
+                            <h4>🤖 AI Tree Identification</h4>
+                            <p>Upload a tree photo, then click Analyze to auto-identify species, health, and details</p>
+                            <button type="button" class="btn-ai" id="aiAnalyzeBtn" onclick="analyzeTreeAI()" disabled>
+                                <i class="fas fa-magic"></i> Analyze with AI
+                            </button>
+                            <span id="aiStatus" style="font-size:12px;margin-left:10px;opacity:0.8;"></span>
+                            <div class="ai-result-box" id="aiResultBox">
+                                <div class="ai-tag"><i class="fas fa-robot"></i> AI Analysis</div>
+                                <div class="ai-desc" id="aiDescription"></div>
+                                <div class="ai-confidence" id="aiConfidence"></div>
+                                <div style="margin-top:8px;font-size:11px;color:#4338ca;" id="aiEcology"></div>
+                                <button type="button" onclick="applyAIResults()" class="btn btn-sm btn-primary" style="margin-top:10px;">
+                                    <i class="fas fa-check"></i> Apply AI Suggestions
+                                </button>
+                            </div>
+                            <input type="hidden" name="ai_description" id="aiDescInput">
+                            <input type="hidden" name="ai_confidence" id="aiConfidenceInput">
+                            <input type="hidden" name="ai_ecological_notes" id="aiEcoInput">
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Main Photo <span style="color:red;">*</span></label>
+                                <div class="photo-upload" onclick="this.querySelector('input').click()">
+                                    <input type="file" name="photo_main" accept="image/*" capture="environment"
+                                           onchange="previewPhoto(this,'prev1')">
+                                    <i class="fas fa-tree"></i>
+                                    <p>Full tree photo</p>
+                                    <img id="prev1" class="photo-preview">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bark Photo</label>
+                                <div class="photo-upload" onclick="this.querySelector('input').click()">
+                                    <input type="file" name="photo_bark" accept="image/*" capture="environment"
+                                           onchange="previewPhoto(this,'prev2')">
+                                    <i class="fas fa-circle"></i>
+                                    <p>Trunk/bark photo</p>
+                                    <img id="prev2" class="photo-preview">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Leaf Photo</label>
+                                <div class="photo-upload" onclick="this.querySelector('input').click()">
+                                    <input type="file" name="photo_leaf" accept="image/*" capture="environment"
+                                           onchange="previewPhoto(this,'prev3')">
+                                    <i class="fas fa-leaf"></i>
+                                    <p>Leaf close-up</p>
+                                    <img id="prev3" class="photo-preview">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Canopy Photo</label>
+                                <div class="photo-upload" onclick="this.querySelector('input').click()">
+                                    <input type="file" name="photo_canopy" accept="image/*" capture="environment"
+                                           onchange="previewPhoto(this,'prev4')">
+                                    <i class="fas fa-cloud"></i>
+                                    <p>Canopy view</p>
+                                    <img id="prev4" class="photo-preview">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RIGHT COLUMN -->
+            <div>
+                <!-- Tree Identification -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-leaf" style="color:#059669;"></i> Tree Identification</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Gujarati Name (ગુજરાતી નામ)</label>
+                            <input type="text" name="common_name_gujarati" class="form-control"
+                                   placeholder="e.g. આંબો, વડ, પીપળ" list="gujaratiSpecies">
+                            <datalist id="gujaratiSpecies">
+                                {% for sp in species_list %}
+                                {% if sp.common_name_gujarati %}
+                                <option value="{{ sp.common_name_gujarati }}">
+                                {% endif %}
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">English Name</label>
+                            <input type="text" name="common_name_english" class="form-control"
+                                   placeholder="e.g. Mango, Banyan, Peepal" list="englishSpecies"
+                                   onchange="fillBotanical(this.value)">
+                            <datalist id="englishSpecies">
+                                {% for sp in species_list %}
+                                <option value="{{ sp.common_name_english }}" data-botanical="{{ sp.botanical_name }}" data-family="{{ sp.family }}">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Botanical Name</label>
+                            <input type="text" name="botanical_name" id="botanicalInput" class="form-control"
+                                   placeholder="e.g. Mangifera indica">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Family</label>
+                            <input type="text" name="family" id="familyInput" class="form-control"
+                                   placeholder="e.g. Anacardiaceae">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tree Tag Number</label>
+                            <input type="text" name="tree_tag_number" class="form-control"
+                                   placeholder="Existing metal tag number (if any)">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Physical Measurements -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-ruler" style="color:var(--info);"></i> Physical Measurements</h3></div>
+                    <div class="card-body">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Height (meters)</label>
+                                <input type="number" name="tree_height" class="form-control"
+                                       step="0.1" placeholder="e.g. 12.5">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Trunk Girth (cm)</label>
+                                <input type="number" name="trunk_girth" class="form-control"
+                                       step="0.1" placeholder="Circumference at 1.3m">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">DBH (cm)</label>
+                                <input type="number" name="dbh" class="form-control"
+                                       step="0.1" placeholder="Diameter Breast Height" id="dbhInput"
+                                       oninput="calcCarbon()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Estimated Age (years)</label>
+                                <input type="number" name="estimated_age" class="form-control"
+                                       placeholder="e.g. 25">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Canopy Spread N-S (m)</label>
+                                <input type="number" name="canopy_spread_ns" class="form-control"
+                                       step="0.1" placeholder="North-South">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Canopy Spread E-W (m)</label>
+                                <input type="number" name="canopy_spread_ew" class="form-control"
+                                       step="0.1" placeholder="East-West">
+                            </div>
+                        </div>
+                        
+                        <div id="carbonPreview" style="display:none;background:#d1fae5;border-radius:8px;padding:10px 14px;font-size:13px;color:#065f46;">
+                            <i class="fas fa-leaf"></i> Estimated Carbon Stock: <strong id="carbonVal">0</strong> kg CO₂
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Health & Condition -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-heartbeat" style="color:#dc2626;"></i> Health & Condition</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Health Condition <span style="color:red;">*</span></label>
+                            <select name="health_condition" class="form-control" required>
+                                <option value="">Select condition</option>
+                                <option value="Excellent">🟢 Excellent</option>
+                                <option value="Good">🟡 Good</option>
+                                <option value="Fair">🟠 Fair</option>
+                                <option value="Poor">🔴 Poor</option>
+                                <option value="Dead">⚫ Dead</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Structural Condition</label>
+                            <select name="structural_condition" class="form-control">
+                                <option value="">Select</option>
+                                <option value="Safe">Safe</option>
+                                <option value="Moderate Risk">Moderate Risk</option>
+                                <option value="High Risk">High Risk</option>
+                                <option value="Fallen">Fallen</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Growth Stage</label>
+                            <select name="growth_stage" class="form-control">
+                                <option value="">Select</option>
+                                <option value="Sapling">Sapling (0-3 years)</option>
+                                <option value="Young">Young (3-10 years)</option>
+                                <option value="Mature">Mature (10-50 years)</option>
+                                <option value="Old">Old (50+ years)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pest / Disease</label>
+                            <input type="text" name="pest_disease" class="form-control"
+                                   placeholder="Any visible pest or disease">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Physical Damage</label>
+                            <input type="text" name="damage_type" class="form-control"
+                                   placeholder="Storm damage, vandalism, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Ecological Value</label>
+                            <select name="ecological_value" class="form-control">
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Required -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-header"><h3><i class="fas fa-tools" style="color:var(--warning);"></i> Action Required</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Required Action</label>
+                            <select name="action_required" class="form-control">
+                                <option value="None">None</option>
+                                <option value="Pruning">Pruning</option>
+                                <option value="Treatment">Pest/Disease Treatment</option>
+                                <option value="Watering">Irrigation/Watering</option>
+                                <option value="Fertilization">Fertilization</option>
+                                <option value="Root Treatment">Root Treatment</option>
+                                <option value="Bracing">Bracing/Support</option>
+                                <option value="Removal">Tree Removal</option>
+                                <option value="Replanting">Replanting</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priority</label>
+                            <select name="priority" class="form-control">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:16px;margin-bottom:16px;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                                <input type="checkbox" name="tree_guard"> Tree Guard Present
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Soil Type</label>
+                            <select name="soil_type" class="form-control">
+                                <option value="">Select</option>
+                                <option value="Sandy">Sandy</option>
+                                <option value="Clay">Clay</option>
+                                <option value="Loam">Loam</option>
+                                <option value="Sandy Loam">Sandy Loam</option>
+                                <option value="Rocky">Rocky</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Water Availability</label>
+                            <select name="water_availability" class="form-control">
+                                <option value="">Select</option>
+                                <option value="Good">Good</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="Poor">Poor</option>
+                                <option value="Very Poor">Very Poor</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Additional Notes</label>
+                            <textarea name="notes" class="form-control" rows="3"
+                                      placeholder="Any additional observations..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display:flex;gap:12px;">
+                    <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;padding:14px;">
+                        <i class="fas fa-save"></i> Save Tree Record
+                    </button>
+                    <a href="{{ url_for('user.dashboard') }}" class="btn btn-outline">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let miniMap = null, miniMarker = null, mapClickMode = false;
+
+function initMiniMap() {
+    if (miniMap) return;
+    miniMap = L.map('miniMap').setView([21.1702, 72.8311], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+    miniMap.on('click', function(e) {
+        if (mapClickMode) {
+            setGPSCoords(e.latlng.lat, e.latlng.lng, 0, 10);
+            mapClickMode = false;
+            document.getElementById('gpsStatus').textContent = '📍 Location set from map click';
+        }
+    });
+}
+
+function setGPSCoords(lat, lng, alt, acc) {
+    document.getElementById('latInput').value = lat.toFixed(6);
+    document.getElementById('lngInput').value = lng.toFixed(6);
+    if (alt) document.getElementById('altInput').value = alt.toFixed(1);
+    if (acc) document.getElementById('accInput').value = acc.toFixed(1);
+    
+    initMiniMap();
+    if (miniMarker) miniMap.removeLayer(miniMarker);
+    miniMarker = L.marker([lat, lng]).addTo(miniMap).bindPopup('🌳 Tree Location').openPopup();
+    miniMap.setView([lat, lng], 16);
+}
+
+function captureGPS() {
+    if (!navigator.geolocation) {
+        alert('Geolocation not supported by your browser');
+        return;
+    }
+    document.getElementById('gpsStatus').textContent = '⏳ Getting your location...';
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            setGPSCoords(pos.coords.latitude, pos.coords.longitude,
+                        pos.coords.altitude, pos.coords.accuracy);
+            document.getElementById('gpsStatus').textContent = 
+                `✅ GPS captured! Accuracy: ±${pos.coords.accuracy.toFixed(1)}m`;
+        },
+        (err) => {
+            document.getElementById('gpsStatus').textContent = '❌ GPS error: ' + err.message;
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+    );
+}
+
+function useMapClick() {
+    initMiniMap();
+    mapClickMode = true;
+    document.getElementById('gpsStatus').textContent = '🗺️ Click on the map below to set location';
+}
+
+function previewPhoto(input, previewId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = document.getElementById(previewId);
+            img.src = e.target.result;
+            img.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function calcCarbon() {
+    const dbh = parseFloat(document.getElementById('dbhInput').value) || 0;
+    const height = parseFloat(document.querySelector('[name="tree_height"]').value) || 10;
+    if (dbh > 0) {
+        const agb = 0.0509 * (dbh ** 2) * height;
+        const carbon = (agb * 0.5).toFixed(2);
+        document.getElementById('carbonPreview').style.display = 'block';
+        document.getElementById('carbonVal').textContent = carbon;
+    }
+}
+
+function fillBotanical(englishName) {
+    const options = document.querySelectorAll('#englishSpecies option');
+    options.forEach(opt => {
+        if (opt.value === englishName) {
+            document.getElementById('botanicalInput').value = opt.dataset.botanical || '';
+            document.getElementById('familyInput').value = opt.dataset.family || '';
+        }
+    });
+}
+
+// Init mini map on page load
+initMiniMap();
+
+// ==================== AI Analysis ====================
+let aiData = null;
+
+// Enable AI button when main photo is selected
+const mainPhotoInput = document.querySelector('input[name="photo_main"]');
+if (mainPhotoInput) {
+    mainPhotoInput.addEventListener('change', function() {
+        const btn = document.getElementById('aiAnalyzeBtn');
+        if (this.files && this.files[0]) {
+            btn.disabled = false;
+            document.getElementById('aiStatus').textContent = '📸 Photo ready for AI analysis';
+        }
+    });
+}
+
+function analyzeTreeAI() {
+    const fileInput = document.querySelector('input[name="photo_main"]');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        alert('Please upload a tree photo first');
+        return;
+    }
+
+    const btn = document.getElementById('aiAnalyzeBtn');
+    const status = document.getElementById('aiStatus');
+    const resultBox = document.getElementById('aiResultBox');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    status.textContent = '🔍 AI is analyzing your tree image...';
+    status.classList.add('ai-loading');
+    resultBox.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+
+    fetch('/api/ai/analyze-tree', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Analyze with AI';
+        status.classList.remove('ai-loading');
+
+        if (data.success) {
+            aiData = data.data;
+            const desc = aiData.description || 'No description generated.';
+            const conf = (aiData.confidence || 'Medium').toLowerCase();
+            const eco = aiData.ecological_notes || '';
+
+            document.getElementById('aiDescription').innerHTML =
+                `<strong>${aiData.common_name_english || 'Unknown'}</strong>` +
+                (aiData.common_name_gujarati ? ` (${aiData.common_name_gujarati})` : '') +
+                `<br><em>${aiData.botanical_name || ''}</em>` +
+                `<br><br>${desc}`;
+
+            const confEl = document.getElementById('aiConfidence');
+            confEl.textContent = `Confidence: ${aiData.confidence || 'Medium'}`;
+            confEl.className = `ai-confidence ${conf}`;
+
+            document.getElementById('aiEcology').textContent = eco ? `🌿 ${eco}` : '';
+
+            resultBox.style.display = 'block';
+            status.textContent = '✅ Analysis complete! Review and apply suggestions below.';
+        } else {
+            status.textContent = '❌ ' + (data.error || 'Analysis failed. Try again.');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> Analyze with AI';
+        status.classList.remove('ai-loading');
+        status.textContent = '❌ Network error. Check connection and try again.';
+        console.error('AI analysis error:', err);
+    });
+}
+
+function applyAIResults() {
+    if (!aiData) return;
+
+    // Fill in the form fields with AI suggestions
+    const fields = {
+        'common_name_english': aiData.common_name_english,
+        'common_name_gujarati': aiData.common_name_gujarati,
+        'botanical_name': aiData.botanical_name,
+        'family': aiData.family,
+        'estimated_age': aiData.estimated_age
+    };
+
+    for (const [name, value] of Object.entries(fields)) {
+        if (value) {
+            const input = document.querySelector(`[name="${name}"]`);
+            if (input) {
+                input.value = value;
+                input.style.borderColor = '#818cf8';
+                input.style.background = '#f0f4ff';
+                setTimeout(() => {
+                    input.style.borderColor = '';
+                    input.style.background = '';
+                }, 3000);
+            }
+        }
+    }
+
+    // Set health condition dropdown
+    if (aiData.health_condition) {
+        const healthSelect = document.querySelector('[name="health_condition"]');
+        if (healthSelect) {
+            for (let opt of healthSelect.options) {
+                if (opt.value === aiData.health_condition) {
+                    opt.selected = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Set growth stage dropdown
+    if (aiData.growth_stage) {
+        const stageSelect = document.querySelector('[name="growth_stage"]');
+        if (stageSelect) {
+            for (let opt of stageSelect.options) {
+                if (opt.value === aiData.growth_stage) {
+                    opt.selected = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Add AI description to notes
+    const notes = document.querySelector('[name="notes"]');
+    if (notes && aiData.description) {
+        const prefix = '[AI Analysis] ';
+        notes.value = prefix + aiData.description +
+            (aiData.ecological_notes ? '\n\n[Ecological Notes] ' + aiData.ecological_notes : '');
+    }
+
+    // Set hidden AI fields for persistence
+    if (document.getElementById('aiDescInput')) {
+        document.getElementById('aiDescInput').value = aiData.description || '';
+    }
+    if (document.getElementById('aiConfidenceInput')) {
+        document.getElementById('aiConfidenceInput').value = aiData.confidence || '';
+    }
+    if (document.getElementById('aiEcoInput')) {
+        document.getElementById('aiEcoInput').value = aiData.ecological_notes || '';
+    }
+
+    // Visual confirmation
+    const btn = event.target;
+    btn.innerHTML = '<i class="fas fa-check"></i> Applied!';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+    setTimeout(() => {
+        btn.innerHTML = '<i class="fas fa-check"></i> Apply AI Suggestions';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }, 2000);
+}
+</script>
+{% endblock %}

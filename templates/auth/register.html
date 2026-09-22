@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | SMC Tree Census</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --primary: #1a6b3c; --primary-light: #2d9a5a; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Plus Jakarta Sans',sans-serif; background:#f0f7f4; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .register-box { background:white; border-radius:20px; box-shadow:0 8px 40px rgba(0,0,0,0.1); width:100%; max-width:640px; overflow:hidden; }
+        .reg-header { background:linear-gradient(135deg,#0f4a28,#1a6b3c); padding:28px 36px; color:white; text-align:center; }
+        .reg-header .icon { font-size:40px; margin-bottom:10px; }
+        .reg-header h2 { font-size:22px; font-weight:800; }
+        .reg-header p { font-size:13px; opacity:0.8; margin-top:4px; }
+        .reg-body { padding:28px 36px; }
+        .form-group { margin-bottom:16px; }
+        .form-label { display:block; font-size:11.5px; font-weight:700; color:#6b7280; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
+        .form-control { width:100%; padding:10px 14px; border:1.5px solid #e5e7eb; border-radius:9px; font-size:13.5px; font-family:inherit; transition:all 0.2s; }
+        .form-control:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(26,107,60,0.1); }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .btn-register { width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-register:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(26,107,60,0.3); }
+        .login-link { text-align:center; margin-top:16px; font-size:13px; color:#6b7280; }
+        .login-link a { color:var(--primary); font-weight:700; text-decoration:none; }
+        .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+        .alert-danger { background:#fee2e2; color:#991b1b; }
+        .section-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--primary); margin:20px 0 12px; padding-bottom:6px; border-bottom:2px solid #d1fae5; }
+    </style>
+</head>
+<body>
+    <div class="register-box">
+        <div class="reg-header">
+            <div class="icon">🌳</div>
+            <h2>Register as Field Surveyor</h2>
+            <p>Surat Municipal Corporation - Tree Census System</p>
+        </div>
+        <div class="reg-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}"><i class="fas fa-exclamation-circle"></i> {{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+            
+            <form method="POST">
+                <div class="section-label">👤 Personal Info</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" name="full_name" class="form-control" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Employee ID *</label>
+                        <input type="text" name="employee_id" class="form-control" placeholder="SMC employee ID" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="tel" name="phone" class="form-control" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username *</label>
+                        <input type="text" name="username" class="form-control" placeholder="username (no spaces)" required>
+                    </div>
+                </div>
+                
+                <div class="section-label">📍 Zone Assignment</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Assigned Zone *</label>
+                        <select name="zone" class="form-control" required>
+                            <option value="">Select Zone</option>
+                            <option value="Central Zone">Central Zone</option>
+                            <option value="East Zone">East Zone</option>
+                            <option value="West Zone">West Zone</option>
+                            <option value="North Zone">North Zone</option>
+                            <option value="South Zone">South Zone</option>
+                            <option value="South-West Zone">South-West Zone</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward Name</label>
+                        <input type="text" name="ward" class="form-control" placeholder="Your ward">
+                    </div>
+                </div>
+                
+                <div class="section-label">🔐 Account Credentials</div>
+                <div class="form-group">
+                    <label class="form-label">Email Address *</label>
+                    <input type="email" name="email" class="form-control" placeholder="your@smc.gov.in" required>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="password" name="password" class="form-control" placeholder="Min 6 characters" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm Password *</label>
+                        <input type="password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-register" style="margin-top:8px;">
+                    <i class="fas fa-user-plus"></i> Submit Registration
+                </button>
+            </form>
+            
+            <div class="login-link">
+                Already have an account? <a href="{{ url_for('auth.login') }}">Sign In →</a>
+            </div>
+            
+            <div style="margin-top:14px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
+                <i class="fas fa-info-circle"></i> Your account will be activated by admin after verification.
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const pw = document.querySelector('[name="password"]').value;
+        const cpw = document.querySelector('[name="confirm_password"]').value;
+        if (pw !== cpw) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+        }
+    });
+    </script>
+</body>
+</html>

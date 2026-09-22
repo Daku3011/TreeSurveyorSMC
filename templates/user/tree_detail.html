@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ tree.tree_id }} Details{% endblock %}
+{% block page_title %}{{ tree.tree_id }}{% endblock %}
+{% block page_subtitle %}{{ tree.common_name_gujarati }} / {{ tree.common_name_english }} | {{ tree.area_name or tree.zone }}{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+        <a href="{{ url_for('user.my_trees') }}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <a href="{{ url_for('user.edit_tree', tree_id=tree.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit Tree
+        </a>
+        <a href="{{ url_for('user.map_view') }}" class="btn btn-outline">
+            <i class="fas fa-map"></i> View on Map
+        </a>
+        <a href="https://maps.google.com/?q={{ tree.latitude }},{{ tree.longitude }}" target="_blank" class="btn btn-outline">
+            <i class="fab fa-google"></i> Google Maps
+        </a>
+    </div>
+    
+    <div class="grid grid-2" style="gap:24px;align-items:start;">
+        <div>
+            <!-- Photos -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>📸 Photos</h3></div>
+                <div class="card-body">
+                    {% set photos = [(tree.photo_main,'Main'),(tree.photo_bark,'Bark'),(tree.photo_leaf,'Leaf'),(tree.photo_canopy,'Canopy')] %}
+                    {% set has_photos = tree.photo_main or tree.photo_bark or tree.photo_leaf or tree.photo_canopy %}
+                    {% if has_photos %}
+                    <div class="grid grid-2">
+                        {% for photo, label in photos %}
+                        {% if photo %}
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;">{{ label }}</div>
+                            <img src="/static/{{ photo }}" style="width:100%;height:130px;object-fit:cover;border-radius:10px;">
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="text-align:center;padding:32px;color:var(--text-muted);">
+                        <i class="fas fa-camera" style="font-size:40px;opacity:0.2;display:block;margin-bottom:12px;"></i>
+                        No photos uploaded.<br>
+                        <a href="{{ url_for('user.edit_tree', tree_id=tree.id) }}" style="color:var(--primary);">Add photos →</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Map -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>📍 GPS Location</h3></div>
+                <div style="height:250px;" id="detailMap"></div>
+                <div style="padding:10px 16px;background:#f9fafb;font-size:12px;border-top:1px solid var(--border);">
+                    <strong>Lat:</strong> {{ '%.6f'|format(tree.latitude) }} &nbsp;|&nbsp;
+                    <strong>Lng:</strong> {{ '%.6f'|format(tree.longitude) }}
+                    {% if tree.gps_accuracy %}&nbsp;|&nbsp;<strong>±{{ tree.gps_accuracy }}m</strong>{% endif %}
+                </div>
+            </div>
+            
+            <!-- Eco Values -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>🌿 Carbon & Ecology</h3></div>
+                <div class="card-body">
+                    <div class="grid grid-2">
+                        <div style="text-align:center;padding:14px;background:#d1fae5;border-radius:10px;">
+                            <div style="font-size:26px;font-weight:800;color:#059669;">{{ tree.carbon_stock or '0' }}</div>
+                            <div style="font-size:11px;color:#065f46;margin-top:2px;">kg CO₂ Stored</div>
+                        </div>
+                        <div style="text-align:center;padding:14px;background:#dbeafe;border-radius:10px;">
+                            <div style="font-size:26px;font-weight:800;color:#1d4ed8;">{{ tree.oxygen_production or '0' }}</div>
+                            <div style="font-size:11px;color:#1e40af;margin-top:2px;">kg O₂/year</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Analysis -->
+            {% if tree.ai_description %}
+            <div class="card">
+                <div class="card-header">
+                    <h3>🤖 AI Analysis</h3>
+                    {% if tree.ai_confidence %}
+                    <span class="badge {% if tree.ai_confidence == 'High' %}badge-green{% elif tree.ai_confidence == 'Medium' %}badge-yellow{% else %}badge-red{% endif %}">
+                        {{ tree.ai_confidence }} Confidence
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div style="background:linear-gradient(135deg,#ede9fe,#e0e7ff);border-radius:10px;padding:16px;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                            <span style="background:#7c3aed;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">AI GENERATED</span>
+                        </div>
+                        <p style="font-size:13.5px;line-height:1.6;color:#312e81;">{{ tree.ai_description }}</p>
+                    </div>
+                    {% if tree.ai_ecological_notes %}
+                    <div style="background:#d1fae5;border-radius:8px;padding:12px 14px;">
+                        <div style="font-size:10px;font-weight:700;color:#065f46;text-transform:uppercase;margin-bottom:4px;">🌿 Ecological Notes</div>
+                        <p style="font-size:12.5px;color:#064e3b;">{{ tree.ai_ecological_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div>
+            <!-- All Details -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <h3>🌳 Tree Details</h3>
+                    {% set hc = tree.health_condition %}
+                    <span class="badge {% if hc == 'Excellent' or hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}" style="font-size:13px;padding:5px 14px;">
+                        {{ hc or 'N/A' }}
+                    </span>
+                </div>
+                <div style="padding:0;">
+                    {% macro row(label, val) %}
+                    <div style="display:flex;padding:9px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:155px;font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;flex-shrink:0;">{{ label }}</span>
+                        <span style="font-size:13.5px;">{{ val or '-' }}</span>
+                    </div>
+                    {% endmacro %}
+                    {{ row('Tree ID', tree.tree_id) }}
+                    {{ row('Gujarati Name', tree.common_name_gujarati) }}
+                    {{ row('English Name', tree.common_name_english) }}
+                    {{ row('Botanical', tree.botanical_name) }}
+                    {{ row('Family', tree.family) }}
+                    {{ row('Zone', tree.zone) }}
+                    {{ row('Ward', tree.ward) }}
+                    {{ row('Area', tree.area_name) }}
+                    {{ row('Location Type', tree.location_type) }}
+                    {{ row('Height', (tree.tree_height|string + ' m') if tree.tree_height else None) }}
+                    {{ row('Trunk Girth', (tree.trunk_girth|string + ' cm') if tree.trunk_girth else None) }}
+                    {{ row('DBH', (tree.dbh|string + ' cm') if tree.dbh else None) }}
+                    {{ row('Canopy N-S', (tree.canopy_spread_ns|string + ' m') if tree.canopy_spread_ns else None) }}
+                    {{ row('Canopy E-W', (tree.canopy_spread_ew|string + ' m') if tree.canopy_spread_ew else None) }}
+                    {{ row('Est. Age', (tree.estimated_age|string + ' years') if tree.estimated_age else None) }}
+                    {{ row('Growth Stage', tree.growth_stage) }}
+                    {{ row('Structural', tree.structural_condition) }}
+                    {{ row('Pest/Disease', tree.pest_disease) }}
+                    {{ row('Damage', tree.damage_type) }}
+                    {{ row('Soil Type', tree.soil_type) }}
+                    {{ row('Water', tree.water_availability) }}
+                    {{ row('Tree Guard', 'Yes ✅' if tree.tree_guard else 'No') }}
+                    {{ row('Tag Number', tree.tree_tag_number) }}
+                    {{ row('Action Needed', tree.action_required) }}
+                    {{ row('Priority', tree.priority) }}
+                    <div style="display:flex;padding:9px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:155px;font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;flex-shrink:0;">Verified</span>
+                        <span style="font-size:13.5px;">
+                            {% if tree.is_verified %}
+                            <span style="color:#059669;">✅ Verified by Admin</span>
+                            {% else %}
+                            <span style="color:#f59e0b;">⏳ Pending Verification</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if tree.notes %}
+                    <div style="padding:12px 20px;">
+                        <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Notes</div>
+                        <p style="font-size:13.5px;">{{ tree.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const map = L.map('detailMap').setView([{{ tree.latitude }}, {{ tree.longitude }}], 17);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+const color = {'Excellent':'#22c55e','Good':'#84cc16','Fair':'#f59e0b','Poor':'#ef4444'}['{{ tree.health_condition }}'] || '#3b82f6';
+L.circleMarker([{{ tree.latitude }}, {{ tree.longitude }}], {
+    radius: 12, fillColor: color, color: 'white', weight: 3, fillOpacity: 0.9
+}).addTo(map).bindPopup('🌳 {{ tree.tree_id }}').openPopup();
+</script>
+{% endblock %}

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | SMC Tree Census</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a6b3c;
+            --primary-light: #2d9a5a;
+            --secondary: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: #f0f7f4;
+        }
+        .login-left {
+            width: 55%;
+            background: linear-gradient(135deg, #0f4a28 0%, #1a6b3c 40%, #2d9a5a 100%);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            overflow: hidden;
+        }
+        .login-left::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .tree-icons {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            display: flex; align-items: flex-end; justify-content: space-around;
+            opacity: 0.1;
+        }
+        .login-left-content { position: relative; z-index: 2; text-align: center; color: white; }
+        .smc-logo {
+            width: 90px; height: 90px; border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            border: 3px solid rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 40px;
+            backdrop-filter: blur(10px);
+        }
+        .login-left-content h1 { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+        .login-left-content h2 { font-size: 18px; font-weight: 500; opacity: 0.85; margin-bottom: 32px; }
+        .stats-row { display: flex; gap: 32px; justify-content: center; margin-top: 40px; }
+        .stat-item { text-align: center; }
+        .stat-item .num { font-size: 28px; font-weight: 800; color: #f59e0b; }
+        .stat-item .lbl { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+        .login-right {
+            width: 45%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 48px;
+        }
+        .login-box { width: 100%; max-width: 380px; }
+        .login-box h3 { font-size: 24px; font-weight: 800; color: #1a2e1e; margin-bottom: 6px; }
+        .login-box p { font-size: 14px; color: #6b7280; margin-bottom: 32px; }
+        .form-group { margin-bottom: 18px; }
+        .form-label { display: block; font-size: 12px; font-weight: 700;
+            color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-wrap { position: relative; }
+        .input-wrap i {
+            position: absolute; left: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af; font-size: 14px;
+        }
+        .form-control {
+            width: 100%; padding: 12px 14px 12px 40px;
+            border: 1.5px solid #e5e7eb; border-radius: 10px;
+            font-size: 14px; font-family: inherit;
+            background: #f9fafb;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            outline: none; border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(26,107,60,0.1);
+        }
+        .btn-login {
+            width: 100%; padding: 13px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            margin-top: 8px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-login:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,107,60,0.3); }
+        .divider { text-align: center; color: #9ca3af; font-size: 12px; margin: 20px 0;
+            position: relative; }
+        .divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0;
+            height: 1px; background: #e5e7eb; }
+        .divider span { background: #f0f7f4; padding: 0 12px; position: relative; }
+        .register-link { text-align: center; font-size: 13px; color: #6b7280; }
+        .register-link a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px; }
+        .alert-danger { background: #fee2e2; color: #991b1b; }
+        .remember-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #6b7280; cursor: pointer; }
+        @media (max-width: 768px) {
+            .login-left { display: none; }
+            .login-right { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-left">
+        <div class="tree-icons">
+            <i class="fas fa-tree" style="font-size:120px;color:white;"></i>
+            <i class="fas fa-tree" style="font-size:180px;color:white;"></i>
+            <i class="fas fa-tree" style="font-size:100px;color:white;"></i>
+            <i class="fas fa-tree" style="font-size:150px;color:white;"></i>
+        </div>
+        <div class="login-left-content">
+            <div class="smc-logo">🌳</div>
+            <h1>SMC Tree Census</h1>
+            <h2>સુરત મ્યુનિસિપલ કોર્પોરેશન<br>વૃક્ષ ગણતરી વ્યવસ્થાપન</h2>
+            <p style="opacity:0.7;font-size:14px;max-width:360px;line-height:1.6;">
+                Comprehensive urban tree inventory system with GPS mapping, health monitoring, and ecological assessment for Surat city.
+            </p>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="num">6</div>
+                    <div class="lbl">SMC Zones</div>
+                </div>
+                <div class="stat-item">
+                    <div class="num">GPS</div>
+                    <div class="lbl">GIS Tracking</div>
+                </div>
+                <div class="stat-item">
+                    <div class="num">100+</div>
+                    <div class="lbl">Tree Species</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="login-right">
+        <div class="login-box">
+            <h3>Welcome Back</h3>
+            <p>Sign in to your SMC account to continue</p>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    <i class="fas fa-exclamation-circle"></i> {{ message }}
+                </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" name="email" class="form-control" 
+                               placeholder="your@smc.gov.in" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" name="password" class="form-control"
+                               placeholder="••••••••" required>
+                    </div>
+                </div>
+                <div class="remember-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="remember"> Remember me
+                    </label>
+                    <a href="#" style="font-size:13px;color:var(--primary);text-decoration:none;font-weight:600;">Forgot password?</a>
+                </div>
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+            
+            <div class="divider"><span>or</span></div>
+            
+            <div class="register-link">
+                New surveyor? <a href="{{ url_for('auth.register') }}">Request Access</a>
+            </div>
+            
+            <div style="margin-top:24px;padding:12px 16px;background:#f0f7f4;border-radius:8px;font-size:12px;color:#6b7280;">
+                <strong style="color:#1a6b3c;">Demo Credentials:</strong><br>
+                Admin: admin@smc.gov.in / Admin@123
+            </div>
+        </div>
+    </div>
+</body>
+</html>

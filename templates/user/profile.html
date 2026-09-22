@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block page_subtitle %}Manage your account settings{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="grid grid-2" style="gap:24px;align-items:start;">
+        <!-- Profile Info -->
+        <div class="card">
+            <div class="card-header"><h3>👤 Personal Information</h3></div>
+            <div class="card-body">
+                <div style="text-align:center;margin-bottom:24px;">
+                    <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;margin:0 auto 12px;">
+                        {{ current_user.full_name[0] }}
+                    </div>
+                    <h3 style="font-size:18px;font-weight:700;">{{ current_user.full_name }}</h3>
+                    <p style="color:var(--text-muted);font-size:13px;">{{ current_user.email }}</p>
+                    <span class="badge {% if current_user.role == 'admin' %}badge-yellow{% else %}badge-green{% endif %}" style="margin-top:6px;">
+                        {{ current_user.role|capitalize }}
+                    </span>
+                </div>
+                
+                <form method="POST">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="full_name" class="form-control"
+                               value="{{ current_user.full_name }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone" class="form-control"
+                               value="{{ current_user.phone or '' }}" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">SMC Zone</label>
+                        <select name="zone" class="form-control">
+                            <option value="">Select Zone</option>
+                            {% for z in ['Central Zone', 'East Zone', 'West Zone', 'North Zone', 'South Zone', 'South-West Zone'] %}
+                            <option value="{{ z }}" {% if current_user.zone == z %}selected{% endif %}>{{ z }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ward</label>
+                        <input type="text" name="ward" class="form-control"
+                               value="{{ current_user.ward or '' }}" placeholder="Your ward name">
+                    </div>
+                    
+                    <hr style="margin:20px 0;border-color:var(--border);">
+                    <h4 style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:16px;text-transform:uppercase;">Change Password</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" placeholder="Leave blank to keep current">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="new_password" class="form-control" placeholder="New password (min 6 chars)">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:8px;">
+                        <i class="fas fa-save"></i> Update Profile
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Account Info -->
+        <div>
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><h3>📊 My Survey Stats</h3></div>
+                <div class="card-body">
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f0f7f4;border-radius:8px;">
+                            <span style="font-size:13px;font-weight:600;">Trees Surveyed</span>
+                            <strong style="font-size:18px;color:var(--primary);">{{ current_user.trees.count() }}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f0f7f4;border-radius:8px;">
+                            <span style="font-size:13px;font-weight:600;">Active Trees</span>
+                            <strong style="font-size:18px;color:var(--primary);">{{ current_user.trees.filter_by(status='active').count() }}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f0f7f4;border-radius:8px;">
+                            <span style="font-size:13px;font-weight:600;">Last Login</span>
+                            <strong style="font-size:14px;color:var(--primary);">{{ current_user.last_login.strftime('%d %b %Y') if current_user.last_login else 'Now' }}</strong>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f0f7f4;border-radius:8px;">
+                            <span style="font-size:13px;font-weight:600;">Member Since</span>
+                            <strong style="font-size:14px;color:var(--primary);">{{ current_user.created_at.strftime('%d %b %Y') if current_user.created_at else '-' }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header"><h3>🪪 Account Details</h3></div>
+                <div class="card-body" style="padding:0;">
+                    {% macro arow(label, val) %}
+                    <div style="display:flex;padding:10px 20px;border-bottom:1px solid #f3f4f6;">
+                        <span style="width:140px;font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;flex-shrink:0;">{{ label }}</span>
+                        <span style="font-size:13.5px;">{{ val or '-' }}</span>
+                    </div>
+                    {% endmacro %}
+                    {{ arow('Username', current_user.username) }}
+                    {{ arow('Email', current_user.email) }}
+                    {{ arow('Employee ID', current_user.employee_id) }}
+                    {{ arow('Role', current_user.role|capitalize) }}
+                    {{ arow('Zone', current_user.zone) }}
+                    {{ arow('Ward', current_user.ward) }}
+                    {{ arow('Status', 'Active ✅' if current_user.is_active else 'Inactive') }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

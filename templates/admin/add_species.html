@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Add Species{% endblock %}
+{% block page_title %}Add Tree Species{% endblock %}
+{% block page_subtitle %}Add new species to the library{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="card" style="max-width:700px;">
+        <div class="card-header"><h3>New Species</h3></div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Gujarati Name</label>
+                        <input type="text" name="gujarati_name" class="form-control" placeholder="e.g. આંબો">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">English Name <span style="color:red;">*</span></label>
+                        <input type="text" name="english_name" class="form-control" placeholder="e.g. Mango" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Botanical Name</label>
+                        <input type="text" name="botanical_name" class="form-control" placeholder="e.g. Mangifera indica">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Family</label>
+                        <input type="text" name="family" class="form-control" placeholder="e.g. Anacardiaceae">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Native to India</label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;">
+                        <input type="checkbox" name="native" checked> This is a native Indian species
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Brief description..."></textarea>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Species</button>
+                    <a href="{{ url_for('admin.species_list') }}" class="btn btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
