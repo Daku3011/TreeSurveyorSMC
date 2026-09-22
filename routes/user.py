@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models.tree import Tree, TreeSpecies, MaintenanceLog
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import os, uuid
 from werkzeug.utils import secure_filename
 
@@ -52,23 +52,70 @@ def to_int_or_none(val):
 @user_bp.route('/dashboard')
 @login_required
 def dashboard():
+    # 1. Surveyor Tree Counts
     my_trees = Tree.query.filter_by(surveyed_by=current_user.id, status='active').count()
-    recent_trees = Tree.query.filter_by(surveyed_by=current_user.id).order_by(
-        Tree.survey_date.desc()).limit(5).all()
+    verified_count = Tree.query.filter_by(surveyed_by=current_user.id, is_verified=True, status='active').count()
+    pending_verification = Tree.query.filter_by(surveyed_by=current_user.id, is_verified=False, status='active').count()
     
+    # Trees in the surveyor's assigned zone
     zone_trees = Tree.query.filter_by(
         zone=current_user.zone, status='active').count() if current_user.zone else 0
     
-    # My trees health distribution
-    health_dist = db.session.query(
-        Tree.health_condition, db.func.count(Tree.id)
+    # Total Carbon Sequestered
+    carbon_total = db.session.query(
+        db.func.sum(Tree.carbon_stock)
+    ).filter_by(surveyed_by=current_user.id, status='active').scalar() or 0.0
+
+    # 2. Health Distribution (surveyor's trees, or fallback to zone trees if surveyor has 0)
+    health_stats = db.session.query(
+        Tree.health_condition, db.func.count(Tree.id).label('count')
     ).filter_by(surveyed_by=current_user.id, status='active').group_by(Tree.health_condition).all()
     
+    if not health_stats and current_user.zone:
+        health_stats = db.session.query(
+            Tree.health_condition, db.func.count(Tree.id).label('count')
+        ).filter_by(zone=current_user.zone, status='active').group_by(Tree.health_condition).all()
+
+    # 3. Species breakdown
+    species_stats = db.session.query(
+        Tree.common_name_english, db.func.count(Tree.id).label('count')
+    ).filter_by(surveyed_by=current_user.id, status='active').group_by(
+        Tree.common_name_english
+    ).order_by(db.func.count(Tree.id).desc()).limit(8).all()
+    
+    if not species_stats and current_user.zone:
+        species_stats = db.session.query(
+            Tree.common_name_english, db.func.count(Tree.id).label('count')
+        ).filter_by(zone=current_user.zone, status='active').group_by(
+            Tree.common_name_english
+        ).order_by(db.func.count(Tree.id).desc()).limit(8).all()
+
+    # 4. Monthly survey trend (last 6 months)
+    monthly_data = []
+    now = datetime.utcnow()
+    for i in range(5, -1, -1):
+        target_date = now - timedelta(days=30 * i)
+        count = Tree.query.filter(
+            Tree.surveyed_by == current_user.id,
+            db.extract('month', Tree.survey_date) == target_date.month,
+            db.extract('year', Tree.survey_date) == target_date.year
+        ).count()
+        monthly_data.append({'month': target_date.strftime('%b %Y'), 'count': count})
+
+    # 5. Recent Trees
+    recent_trees = Tree.query.filter_by(surveyed_by=current_user.id).order_by(
+        Tree.survey_date.desc()).limit(8).all()
+
     return render_template('user/dashboard.html',
         my_trees=my_trees,
-        recent_trees=recent_trees,
+        verified_count=verified_count,
+        pending_verification=pending_verification,
         zone_trees=zone_trees,
-        health_dist=health_dist
+        carbon_total=round(carbon_total, 1),
+        health_stats=health_stats,
+        species_stats=species_stats,
+        monthly_data=monthly_data,
+        recent_trees=recent_trees
     )
 
 @user_bp.route('/add-tree', methods=['GET', 'POST'])
@@ -177,20 +224,35 @@ def add_tree():
 @login_required
 def my_trees():
     page = request.args.get('page', 1, type=int)
-    search = request.args.get('search', '')
+    search = request.args.get('search', '').strip()
+    health = request.args.get('health', '').strip()
+    verification = request.args.get('verification', '').strip()
     
     query = Tree.query.filter_by(surveyed_by=current_user.id)
+    
     if search:
         query = query.filter(
             db.or_(
                 Tree.tree_id.ilike(f'%{search}%'),
                 Tree.common_name_english.ilike(f'%{search}%'),
+                Tree.common_name_gujarati.ilike(f'%{search}%'),
                 Tree.area_name.ilike(f'%{search}%')
             )
         )
+    if health:
+        query = query.filter_by(health_condition=health)
+    if verification == 'verified':
+        query = query.filter_by(is_verified=True)
+    elif verification == 'pending':
+        query = query.filter_by(is_verified=False)
     
-    trees = query.order_by(Tree.survey_date.desc()).paginate(page=page, per_page=20)
-    return render_template('user/trees.html', trees=trees, search=search)
+    trees = query.order_by(Tree.survey_date.desc()).paginate(page=page, per_page=15)
+    
+    return render_template('user/trees.html', 
+                           trees=trees, 
+                           search=search, 
+                           selected_health=health,
+                           selected_verification=verification)
 
 @user_bp.route('/trees/<int:tree_id>')
 @login_required

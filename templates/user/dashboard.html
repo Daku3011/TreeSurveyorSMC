@@ -1,152 +1,290 @@
 {% extends "base.html" %}
-{% block title %}Admin Dashboard{% endblock %}
-{% block page_title %}Admin Dashboard{% endblock %}
-{% block page_subtitle %}SMC Tree Census Overview - All Zones{% endblock %}
+{% block title %}Surveyor Dashboard{% endblock %}
+{% block page_title %}Field Surveyor Dashboard{% endblock %}
+{% block page_subtitle %}Field survey operations & tree registry for {{ current_user.full_name }} ({{ current_user.zone or 'Assigned Zone' }}){% endblock %}
+
+{% block extra_css %}
+<style>
+    .welcome-banner {
+        background: linear-gradient(135deg, #0f4a28 0%, #1a6b3c 50%, #2d9a5a 100%);
+        border-radius: 16px; padding: 22px 28px;
+        color: white; margin-bottom: 24px;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 16px;
+        box-shadow: 0 4px 20px rgba(26, 107, 60, 0.2);
+    }
+    .welcome-banner h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .welcome-banner p { font-size: 13px; opacity: 0.9; margin: 0; }
+    .banner-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-white {
+        background: white; color: var(--primary);
+        font-weight: 700; border: none; padding: 9px 18px;
+        border-radius: 10px; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 13px; transition: all 0.2s;
+    }
+    .btn-white:hover { background: #f0fdf4; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .btn-banner-outline {
+        background: rgba(255,255,255,0.15); color: white;
+        border: 1.5px solid rgba(255,255,255,0.4); font-weight: 600;
+        padding: 9px 16px; border-radius: 10px; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 8px;
+        font-size: 13px; transition: all 0.2s;
+    }
+    .btn-banner-outline:hover { background: rgba(255,255,255,0.25); color: white; }
+    .stat-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+        margin-top: 6px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="content">
+    <!-- Welcome Quick Action Banner -->
+    <div class="welcome-banner">
+        <div>
+            <h2>Welcome back, {{ current_user.full_name }}! 👋</h2>
+            <p><i class="fas fa-map-marker-alt"></i> Assigned Zone: <strong>{{ current_user.zone or 'Not specified' }}</strong> &nbsp;|&nbsp; <i class="fas fa-id-badge"></i> ID: {{ current_user.employee_id or 'Surveyor' }}</p>
+        </div>
+        <div class="banner-actions">
+            <a href="{{ url_for('user.add_tree') }}" class="btn-white">
+                <i class="fas fa-plus-circle" style="color:#059669;"></i> Add New Tree with AI
+            </a>
+            <a href="{{ url_for('user.map_view') }}" class="btn-banner-outline">
+                <i class="fas fa-map-marked-alt"></i> GIS Map
+            </a>
+            <a href="{{ url_for('user.my_trees') }}" class="btn-banner-outline">
+                <i class="fas fa-tree"></i> My Tree Records
+            </a>
+        </div>
+    </div>
+
     <!-- Stats Row -->
     <div class="grid grid-4" style="margin-bottom:24px;">
         <div class="stat-card">
-            <div class="stat-icon" style="background:#d1fae5;">🌳</div>
-            <div class="stat-value">{{ total_trees | default(0) }}</div>
-            <div class="stat-label">Total Active Trees</div>
+            <div class="stat-icon" style="background:#d1fae5;color:#059669;">
+                <i class="fas fa-tree"></i>
+            </div>
+            <div class="stat-value">{{ my_trees | default(0) }}</div>
+            <div class="stat-label">My Total Surveyed Trees</div>
+            <div class="stat-pill" style="background:#ecfdf5;color:#047857;">Active Records</div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-icon" style="background:#dbeafe;">👥</div>
-            <div class="stat-value">{{ total_users | default(0) }}</div>
-            <div class="stat-label">Field Surveyors</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#fef3c7;">⚠️</div>
+            <div class="stat-icon" style="background:#fef3c7;color:#d97706;">
+                <i class="fas fa-clock"></i>
+            </div>
             <div class="stat-value">{{ pending_verification | default(0) }}</div>
-            <div class="stat-label">Pending Verification</div>
+            <div class="stat-label">Pending Admin Verification</div>
+            <div class="stat-pill" style="background:#fffbeb;color:#b45309;">Awaiting review</div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-icon" style="background:#f3e8ff;">🌿</div>
-            <div class="stat-value">6</div>
-            <div class="stat-label">SMC Zones Covered</div>
+            <div class="stat-icon" style="background:#dbeafe;color:#1d4ed8;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-value">{{ verified_count | default(0) }}</div>
+            <div class="stat-label">Verified Trees</div>
+            <div class="stat-pill" style="background:#eff6ff;color:#1d4ed8;">Approved by SMC</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f3e8ff;color:#7c3aed;">
+                <i class="fas fa-smog"></i>
+            </div>
+            <div class="stat-value">{{ carbon_total | default(0) }}</div>
+            <div class="stat-label">Carbon Sequestered (kg CO₂)</div>
+            <div class="stat-pill" style="background:#faf5ff;color:#6b21a8;">Zone: {{ zone_trees }} trees total</div>
         </div>
     </div>
-    
+
     <!-- Charts Row -->
     <div class="grid grid-2" style="margin-bottom:24px;">
-        <!-- Zone-wise Chart -->
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-map" style="color:var(--primary);margin-right:8px;"></i>Zone-wise Tree Count</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="zoneChart" height="220"></canvas>
-            </div>
-        </div>
-        
         <!-- Health Distribution -->
         <div class="card">
             <div class="card-header">
-                <h3><i class="fas fa-heartbeat" style="color:#dc2626;margin-right:8px;"></i>Health Distribution</h3>
+                <h3><i class="fas fa-heartbeat" style="color:#dc2626;margin-right:8px;"></i>Tree Health Condition</h3>
+                <span style="font-size:12px;color:var(--text-muted);">My Surveys & Zone</span>
             </div>
-            <div class="card-body">
-                <canvas id="healthChart" height="220"></canvas>
+            <div class="card-body" style="display:flex;align-items:center;justify-content:center;min-height:260px;">
+                {% if health_stats and health_stats|length > 0 %}
+                <canvas id="healthChart" style="max-height:240px;width:100%;"></canvas>
+                {% else %}
+                <div style="text-align:center;color:var(--text-muted);padding:30px;">
+                    <i class="fas fa-chart-pie" style="font-size:40px;opacity:0.3;margin-bottom:12px;display:block;"></i>
+                    No health records yet.<br>
+                    <a href="{{ url_for('user.add_tree') }}" class="btn btn-sm btn-primary" style="margin-top:10px;">Add first tree</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Monthly Activity Trend -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line" style="color:var(--primary);margin-right:8px;"></i>My Monthly Survey Activity</h3>
+                <span style="font-size:12px;color:var(--text-muted);">Last 6 Months</span>
+            </div>
+            <div class="card-body" style="display:flex;align-items:center;justify-content:center;min-height:260px;">
+                <canvas id="monthlyChart" style="max-height:240px;width:100%;"></canvas>
             </div>
         </div>
     </div>
-    
-    <!-- Monthly Trend + Top Species -->
+
+    <!-- Species Breakdown & Quick Info -->
     <div class="grid grid-2" style="margin-bottom:24px;">
+        <!-- Top Species Surveyed -->
         <div class="card">
             <div class="card-header">
-                <h3><i class="fas fa-chart-line" style="color:var(--primary);margin-right:8px;"></i>Monthly Survey Trend</h3>
-            </div>
-            <div class="card-body">
-                <canvas id="monthlyChart" height="200"></canvas>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h3><i class="fas fa-leaf" style="color:#059669;margin-right:8px;"></i>Top 10 Species</h3>
+                <h3><i class="fas fa-leaf" style="color:#059669;margin-right:8px;"></i>Top Tree Species Surveyed</h3>
+                <a href="{{ url_for('user.my_trees') }}" class="btn btn-outline btn-sm">Catalog</a>
             </div>
             <div class="card-body" style="padding:0;">
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Species</th>
-                            <th>Count</th>
+                            <th style="width:40px;">#</th>
+                            <th>Tree Species</th>
+                            <th style="text-align:right;">Recorded Count</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for name, count in species_stats %}
                         <tr>
-                            <td style="color:var(--text-muted);">{{ loop.index }}</td>
-                            <td>{{ name or 'Unknown' }}</td>
-                            <td><span class="badge badge-green">{{ count }}</span></td>
+                            <td style="color:var(--text-muted);font-weight:700;">{{ loop.index }}</td>
+                            <td><strong>{{ name or 'Unknown Species' }}</strong></td>
+                            <td style="text-align:right;">
+                                <span class="badge badge-green">{{ count }}</span>
+                            </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No data yet</td></tr>
+                        <tr>
+                            <td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted);">
+                                No species recorded yet
+                            </td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <!-- Verification & Field Quick Guide -->
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-tasks" style="color:var(--info);margin-right:8px;"></i>Survey Status & Field Tips</h3>
+            </div>
+            <div class="card-body">
+                <div style="margin-bottom:16px;padding:14px;background:#f8fafc;border-radius:10px;border-left:4px solid #2563eb;">
+                    <div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:4px;">
+                        <i class="fas fa-info-circle"></i> Verification Workflow
+                    </div>
+                    <p style="font-size:12.5px;color:#475569;margin:0;line-height:1.5;">
+                        Trees you record start as <strong>Pending Verification</strong>. SMC horticulture admins inspect GPS coordinates, health data, and tree tags before verifying them.
+                    </p>
+                </div>
+
+                <div style="display:flex;gap:12px;margin-bottom:16px;">
+                    <div style="flex:1;background:#ecfdf5;border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:#059669;">{{ verified_count }}</div>
+                        <div style="font-size:11px;color:#065f46;font-weight:600;">Verified</div>
+                    </div>
+                    <div style="flex:1;background:#fffbeb;border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:22px;font-weight:800;color:#d97706;">{{ pending_verification }}</div>
+                        <div style="font-size:11px;color:#92400e;font-weight:600;">Pending Review</div>
+                    </div>
+                </div>
+
+                <div style="background:linear-gradient(135deg,#ede9fe,#e0e7ff);border-radius:10px;padding:14px;">
+                    <div style="font-size:12px;font-weight:700;color:#4338ca;margin-bottom:4px;">
+                        <i class="fas fa-robot"></i> AI Assisted Identification
+                    </div>
+                    <p style="font-size:12px;color:#3730a3;margin:0;">
+                        Use your mobile camera to take clear photos of the full tree, bark, and leaves. The AI will suggest exact species (in Gujarati and English) plus health conditions automatically.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <!-- Recent Trees -->
+
+    <!-- Recent Trees Table -->
     <div class="card">
         <div class="card-header">
-            <h3><i class="fas fa-clock" style="color:var(--text-muted);margin-right:8px;"></i>Recently Added Trees</h3>
-            <a href="{{ url_for('admin.tree_list') }}" class="btn btn-outline btn-sm">View All</a>
+            <h3><i class="fas fa-history" style="color:var(--text-muted);margin-right:8px;"></i>My Recently Surveyed Trees</h3>
+            <a href="{{ url_for('user.my_trees') }}" class="btn btn-outline btn-sm">View All Trees ({{ my_trees }})</a>
         </div>
         <div style="overflow-x:auto;">
             <table class="table">
                 <thead>
                     <tr>
                         <th>Tree ID</th>
-                        <th>Species (Gujarati)</th>
-                        <th>Species (English)</th>
-                        <th>Zone</th>
+                        <th>Species (Gujarati / English)</th>
                         <th>Area</th>
                         <th>Health</th>
+                        <th>AI Analyzed</th>
                         <th>Survey Date</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tree in recent_trees %}
                     <tr>
-                        <td><strong style="color:var(--primary);">{{ tree.tree_id }}</strong></td>
-                        <td>{{ tree.common_name_gujarati or '-' }}</td>
-                        <td>{{ tree.common_name_english or '-' }}</td>
-                        <td><span class="badge badge-blue">{{ tree.zone }}</span></td>
-                        <td>{{ tree.area_name or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('user.tree_detail', tree_id=tree.id) }}" style="color:var(--primary);font-weight:700;text-decoration:none;">
+                                {{ tree.tree_id }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ tree.common_name_gujarati or '' }}</strong>
+                            {% if tree.common_name_gujarati and tree.common_name_english %} / {% endif %}
+                            <span>{{ tree.common_name_english or 'Unknown' }}</span>
+                        </td>
+                        <td>{{ tree.area_name or tree.zone or '-' }}</td>
                         <td>
                             {% set hc = tree.health_condition %}
-                            <span class="badge {% if hc == 'Excellent' %}badge-green{% elif hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}">
+                            <span class="badge {% if hc == 'Excellent' or hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}">
                                 {{ hc or 'N/A' }}
                             </span>
+                        </td>
+                        <td>
+                            {% if tree.ai_description %}
+                            <span class="badge" style="background:#ede9fe;color:#6d28d9;">
+                                <i class="fas fa-robot" style="margin-right:4px;"></i> {{ tree.ai_confidence or 'AI' }}
+                            </span>
+                            {% else %}
+                            <span style="color:var(--text-muted);font-size:12px;">Manual</span>
+                            {% endif %}
                         </td>
                         <td>{{ tree.survey_date.strftime('%d %b %Y') if tree.survey_date else '-' }}</td>
                         <td>
                             {% if tree.is_verified %}
-                            <span class="badge badge-green"><i class="fas fa-check"></i> Verified</span>
+                            <span class="badge badge-green"><i class="fas fa-check-circle" style="margin-right:4px;"></i> Verified</span>
                             {% else %}
-                            <span class="badge badge-yellow">Pending</span>
+                            <span class="badge badge-yellow"><i class="fas fa-clock" style="margin-right:4px;"></i> Pending Review</span>
                             {% endif %}
                         </td>
-                        <td>
-                            <a href="{{ url_for('admin.tree_detail', tree_id=tree.id) }}" 
-                               class="btn btn-outline btn-sm">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex;gap:6px;">
+                                <a href="{{ url_for('user.tree_detail', tree_id=tree.id) }}" class="btn btn-outline btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('user.edit_tree', tree_id=tree.id) }}" class="btn btn-outline btn-sm" title="Edit Tree">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);">
-                            <i class="fas fa-tree" style="font-size:32px;margin-bottom:12px;display:block;opacity:0.3;"></i>
-                            No trees recorded yet
+                        <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
+                            <i class="fas fa-tree" style="font-size:36px;opacity:0.3;margin-bottom:12px;display:block;"></i>
+                            No tree records found yet.<br>
+                            <a href="{{ url_for('user.add_tree') }}" class="btn btn-primary btn-sm" style="margin-top:12px;">
+                                <i class="fas fa-plus"></i> Add Your First Tree Survey
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -159,68 +297,77 @@
 
 {% block extra_js %}
 <script>
-const zoneLabels = [{% for z, c in zone_stats %}"{{ z }}"{% if not loop.last %},{% endif %}{% endfor %}];
-const zoneCounts = [{% for z, c in zone_stats %}{{ c }}{% if not loop.last %},{% endif %}{% endfor %}];
+// Health Distribution Chart
 const healthLabels = [{% for h, c in health_stats %}"{{ h }}"{% if not loop.last %},{% endif %}{% endfor %}];
 const healthCounts = [{% for h, c in health_stats %}{{ c }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+const healthColors = {
+    'Excellent': '#22c55e',
+    'Good': '#84cc16',
+    'Fair': '#f59e0b',
+    'Poor': '#ef4444',
+    'Dead': '#6b7280'
+};
+
+const healthCanvas = document.getElementById('healthChart');
+if (healthCanvas && healthLabels.length > 0) {
+    new Chart(healthCanvas, {
+        type: 'doughnut',
+        data: {
+            labels: healthLabels,
+            datasets: [{
+                data: healthCounts,
+                backgroundColor: healthLabels.map(h => healthColors[h] || '#3b82f6'),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Plus Jakarta Sans', size: 12 } } }
+            },
+            cutout: '65%'
+        }
+    });
+}
+
+// Monthly Activity Trend Chart
 const monthlyLabels = [{% for m in monthly_data %}"{{ m.month }}"{% if not loop.last %},{% endif %}{% endfor %}];
 const monthlyCounts = [{% for m in monthly_data %}{{ m.count }}{% if not loop.last %},{% endif %}{% endfor %}];
 
-// Zone Chart
-new Chart(document.getElementById('zoneChart'), {
-    type: 'bar',
-    data: {
-        labels: zoneLabels,
-        datasets: [{
-            label: 'Trees',
-            data: zoneCounts,
-            backgroundColor: '#1a6b3c',
-            borderRadius: 6
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
-    }
-});
-
-// Health Chart
-const healthColors = {
-    'Excellent': '#22c55e', 'Good': '#84cc16',
-    'Fair': '#f59e0b', 'Poor': '#ef4444', 'Dead': '#6b7280'
-};
-new Chart(document.getElementById('healthChart'), {
-    type: 'doughnut',
-    data: {
-        labels: healthLabels,
-        datasets: [{
-            data: healthCounts,
-            backgroundColor: healthLabels.map(h => healthColors[h] || '#3b82f6'),
-            borderWidth: 2, borderColor: 'white'
-        }]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
-});
-
-// Monthly Chart
-new Chart(document.getElementById('monthlyChart'), {
-    type: 'line',
-    data: {
-        labels: monthlyLabels,
-        datasets: [{
-            label: 'Trees Surveyed',
-            data: monthlyCounts,
-            borderColor: '#1a6b3c',
-            backgroundColor: 'rgba(26,107,60,0.1)',
-            fill: true, tension: 0.4, pointBackgroundColor: '#1a6b3c'
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
-    }
-});
+const monthlyCanvas = document.getElementById('monthlyChart');
+if (monthlyCanvas) {
+    new Chart(monthlyCanvas, {
+        type: 'bar',
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: 'Trees Recorded',
+                data: monthlyCounts,
+                backgroundColor: '#1a6b3c',
+                borderRadius: 8,
+                barThickness: 28
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
 </script>
 {% endblock %}

@@ -1,45 +1,51 @@
 {% extends "base.html" %}
-{% block title %}All Trees{% endblock %}
-{% block page_title %}All Trees{% endblock %}
-{% block page_subtitle %}Complete tree inventory across all SMC zones{% endblock %}
+{% block title %}My Surveyed Trees{% endblock %}
+{% block page_title %}My Surveyed Trees{% endblock %}
+{% block page_subtitle %}Trees recorded by {{ current_user.full_name }} in SMC Tree Census{% endblock %}
 
 {% block content %}
 <div class="content">
-    <!-- Filter Bar -->
+    <!-- Filter & Action Bar -->
     <div class="card" style="margin-bottom:20px;">
         <div class="card-body" style="padding:16px 24px;">
             <form method="GET" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                 <input type="text" name="search" class="form-control" style="max-width:280px;"
                        value="{{ search }}" placeholder="🔍 Search tree ID, species, area...">
-                <select name="zone" class="form-control" style="max-width:200px;">
-                    <option value="">All Zones</option>
-                    {% for z in zones %}
-                    <option value="{{ z[0] }}" {% if selected_zone == z[0] %}selected{% endif %}>{{ z[0] }}</option>
-                    {% endfor %}
-                </select>
+
                 <select name="health" class="form-control" style="max-width:160px;">
                     <option value="">All Health</option>
-                    <option value="Excellent" {% if selected_health == 'Excellent' %}selected{% endif %}>Excellent</option>
-                    <option value="Good" {% if selected_health == 'Good' %}selected{% endif %}>Good</option>
-                    <option value="Fair" {% if selected_health == 'Fair' %}selected{% endif %}>Fair</option>
-                    <option value="Poor" {% if selected_health == 'Poor' %}selected{% endif %}>Poor</option>
-                    <option value="Dead" {% if selected_health == 'Dead' %}selected{% endif %}>Dead</option>
+                    <option value="Excellent" {% if selected_health == 'Excellent' %}selected{% endif %}>🟢 Excellent</option>
+                    <option value="Good" {% if selected_health == 'Good' %}selected{% endif %}>🟡 Good</option>
+                    <option value="Fair" {% if selected_health == 'Fair' %}selected{% endif %}>🟠 Fair</option>
+                    <option value="Poor" {% if selected_health == 'Poor' %}selected{% endif %}>🔴 Poor</option>
+                    <option value="Dead" {% if selected_health == 'Dead' %}selected{% endif %}>⚫ Dead</option>
                 </select>
+
+                <select name="verification" class="form-control" style="max-width:180px;">
+                    <option value="">All Verification</option>
+                    <option value="pending" {% if selected_verification == 'pending' %}selected{% endif %}>⏳ Pending Verification</option>
+                    <option value="verified" {% if selected_verification == 'verified' %}selected{% endif %}>✅ Verified by Admin</option>
+                </select>
+
                 <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filter</button>
-                <a href="{{ url_for('admin.tree_list') }}" class="btn btn-outline"><i class="fas fa-times"></i> Clear</a>
-                <a href="{{ url_for('admin.export_trees') }}" class="btn btn-success" style="margin-left:auto;">
-                    <i class="fas fa-file-excel"></i> Export Excel
-                </a>
+                <a href="{{ url_for('user.my_trees') }}" class="btn btn-outline"><i class="fas fa-times"></i> Reset</a>
+                
+                <div style="margin-left:auto;display:flex;gap:8px;">
+                    <a href="{{ url_for('user.add_tree') }}" class="btn btn-success">
+                        <i class="fas fa-plus-circle"></i> Add New Tree
+                    </a>
+                    <a href="{{ url_for('user.map_view') }}" class="btn btn-outline">
+                        <i class="fas fa-map-marked-alt"></i> Map View
+                    </a>
+                </div>
             </form>
         </div>
     </div>
     
     <div class="card">
         <div class="card-header">
-            <h3>Trees ({{ trees.total }} total)</h3>
-            <a href="{{ url_for('admin.map_view') }}" class="btn btn-outline btn-sm">
-                <i class="fas fa-map"></i> View on Map
-            </a>
+            <h3>My Tree Inventory ({{ trees.total }} total)</h3>
+            <span style="font-size:12px;color:var(--text-muted);">Page {{ trees.page }} of {{ trees.pages or 1 }}</span>
         </div>
         <div style="overflow-x:auto;">
             <table class="table">
@@ -49,61 +55,69 @@
                         <th>Photo</th>
                         <th>Gujarati Name</th>
                         <th>English Name</th>
-                        <th>Botanical Name</th>
-                        <th>Zone</th>
-                        <th>Area</th>
-                        <th>GPS</th>
-                        <th>Height</th>
+                        <th>Area / Location</th>
                         <th>Health</th>
-                        <th>Carbon</th>
+                        <th>AI Analyzed</th>
+                        <th>Carbon Stock</th>
                         <th>Survey Date</th>
-                        <th>Verified</th>
-                        <th>Action</th>
+                        <th>Verification</th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tree in trees.items %}
                     <tr>
-                        <td><strong style="color:var(--primary);font-family:monospace;">{{ tree.tree_id }}</strong></td>
+                        <td>
+                            <a href="{{ url_for('user.tree_detail', tree_id=tree.id) }}" style="color:var(--primary);font-weight:700;font-family:monospace;text-decoration:none;">
+                                {{ tree.tree_id }}
+                            </a>
+                        </td>
                         <td>
                             {% if tree.photo_main %}
-                            <img src="/static/{{ tree.photo_main }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
+                            <img src="/static/{{ tree.photo_main }}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                             {% else %}
-                            <div style="width:40px;height:40px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">🌳</div>
+                            <div style="width:42px;height:42px;background:#f0fdf4;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#059669;">🌳</div>
                             {% endif %}
                         </td>
-                        <td>{{ tree.common_name_gujarati or '-' }}</td>
+                        <td><strong>{{ tree.common_name_gujarati or '-' }}</strong></td>
                         <td>{{ tree.common_name_english or '-' }}</td>
-                        <td><em style="font-size:12px;color:var(--text-muted);">{{ tree.botanical_name or '-' }}</em></td>
-                        <td><span class="badge badge-blue">{{ tree.zone }}</span></td>
-                        <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ tree.area_name or '-' }}</td>
-                        <td style="font-size:11px;font-family:monospace;color:var(--text-muted);">
-                            {{ '%.4f'|format(tree.latitude) }},<br>{{ '%.4f'|format(tree.longitude) }}
-                        </td>
-                        <td>{{ tree.tree_height|string + 'm' if tree.tree_height else '-' }}</td>
+                        <td>{{ tree.area_name or tree.zone or '-' }}</td>
                         <td>
                             {% set hc = tree.health_condition %}
-                            <span class="badge {% if hc == 'Excellent' %}badge-green{% elif hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}">
+                            <span class="badge {% if hc == 'Excellent' or hc == 'Good' %}badge-green{% elif hc == 'Fair' %}badge-yellow{% elif hc == 'Poor' %}badge-red{% else %}badge-gray{% endif %}">
                                 {{ hc or 'N/A' }}
                             </span>
                         </td>
-                        <td>{{ tree.carbon_stock|string + ' kg' if tree.carbon_stock else '-' }}</td>
-                        <td style="font-size:12px;">{{ tree.survey_date.strftime('%d %b %Y') if tree.survey_date else '-' }}</td>
                         <td>
-                            {% if tree.is_verified %}
-                            <i class="fas fa-check-circle" style="color:#059669;"></i>
+                            {% if tree.ai_description %}
+                            <span class="badge" style="background:#ede9fe;color:#6d28d9;">
+                                <i class="fas fa-robot"></i> {{ tree.ai_confidence or 'AI' }}
+                            </span>
                             {% else %}
-                            <i class="fas fa-clock" style="color:#f59e0b;"></i>
+                            <span style="color:var(--text-muted);font-size:12px;">Manual</span>
                             {% endif %}
                         </td>
+                        <td>{{ tree.carbon_stock|string + ' kg' if tree.carbon_stock else '0 kg' }}</td>
+                        <td style="font-size:12.5px;">{{ tree.survey_date.strftime('%d %b %Y') if tree.survey_date else '-' }}</td>
                         <td>
-                            <div style="display:flex;gap:4px;">
-                                <a href="{{ url_for('admin.tree_detail', tree_id=tree.id) }}" 
-                                   class="btn btn-outline btn-sm" title="View">
+                            {% if tree.is_verified %}
+                            <span class="badge badge-green"><i class="fas fa-check-circle" style="margin-right:4px;"></i> Verified</span>
+                            {% else %}
+                            <span class="badge badge-yellow"><i class="fas fa-clock" style="margin-right:4px;"></i> Pending Review</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            <div style="display:inline-flex;gap:6px;">
+                                <a href="{{ url_for('user.tree_detail', tree_id=tree.id) }}" 
+                                   class="btn btn-outline btn-sm" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                                <a href="{{ url_for('user.edit_tree', tree_id=tree.id) }}" 
+                                   class="btn btn-outline btn-sm" title="Edit Record">
+                                    <i class="fas fa-edit"></i>
+                                </a>
                                 <a href="https://maps.google.com/?q={{ tree.latitude }},{{ tree.longitude }}" 
-                                   target="_blank" class="btn btn-outline btn-sm" title="Open in Google Maps">
+                                   target="_blank" class="btn btn-outline btn-sm" title="Open Google Maps">
                                     <i class="fas fa-map-marker-alt"></i>
                                 </a>
                             </div>
@@ -111,9 +125,12 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="14" style="text-align:center;padding:48px;color:var(--text-muted);">
+                        <td colspan="11" style="text-align:center;padding:48px;color:var(--text-muted);">
                             <i class="fas fa-search" style="font-size:40px;opacity:0.2;display:block;margin-bottom:12px;"></i>
-                            No trees found matching your filters
+                            No tree records found matching your filters.<br>
+                            <a href="{{ url_for('user.add_tree') }}" class="btn btn-primary btn-sm" style="margin-top:12px;">
+                                <i class="fas fa-plus"></i> Add a New Tree
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -125,19 +142,19 @@
         {% if trees.pages > 1 %}
         <div style="padding:16px 24px;display:flex;justify-content:center;gap:6px;border-top:1px solid var(--border);">
             {% if trees.has_prev %}
-            <a href="{{ url_for('admin.tree_list', page=trees.prev_num, zone=selected_zone, health=selected_health, search=search) }}" 
+            <a href="{{ url_for('user.my_trees', page=trees.prev_num, search=search, health=selected_health, verification=selected_verification) }}" 
                class="btn btn-outline btn-sm">‹ Prev</a>
             {% endif %}
-            {% for p in trees.iter_pages() %}
+            {% for p in trees.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                 {% if p %}
-                <a href="{{ url_for('admin.tree_list', page=p, zone=selected_zone, health=selected_health, search=search) }}"
+                <a href="{{ url_for('user.my_trees', page=p, search=search, health=selected_health, verification=selected_verification) }}"
                    class="btn {% if p == trees.page %}btn-primary{% else %}btn-outline{% endif %} btn-sm">{{ p }}</a>
                 {% else %}
-                <span style="padding:5px;">...</span>
+                <span style="padding:6px 10px;color:var(--text-muted);">...</span>
                 {% endif %}
             {% endfor %}
             {% if trees.has_next %}
-            <a href="{{ url_for('admin.tree_list', page=trees.next_num, zone=selected_zone, health=selected_health, search=search) }}"
+            <a href="{{ url_for('user.my_trees', page=trees.next_num, search=search, health=selected_health, verification=selected_verification) }}"
                class="btn btn-outline btn-sm">Next ›</a>
             {% endif %}
         </div>
